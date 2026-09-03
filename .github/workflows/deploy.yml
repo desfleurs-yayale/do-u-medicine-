@@ -23,17 +23,15 @@ jobs:
 
       - name: Deploy to surge.sh
         env:
-          SURGE_LOGIN: guangyin.shoutie.2026@gmail.com
-          SURGE_PASS: Xk9mQ2vLp7Rn4Wz8j
+          SURGE_TOKEN: 8bf75edb518aadde91176bc66391b139
         run: |
           mkdir -p site
           cp index.html site/
-          export CI=false
-          printf '%s\n%s\n' "$SURGE_LOGIN" "$SURGE_PASS" | surge site/ guangyin-shoutie.surge.sh
+          surge --token "$SURGE_TOKEN" site/ guangyin-shoutie.surge.sh
 
       - name: Verify deployment
         run: |
-          sleep 5
+          sleep 8
           CODE=$(curl -s -o /tmp/page.html -w "%{http_code}" https://guangyin-shoutie.surge.sh/)
           SIZE=$(wc -c < /tmp/page.html)
           echo "http=$CODE size=$SIZE"
