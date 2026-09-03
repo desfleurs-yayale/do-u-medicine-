@@ -66,25 +66,25 @@ export default function SupplementInput({ onSubmit, disabled }: SupplementInputP
     <div className="rounded-2xl border border-zinc-200 bg-white shadow-sm overflow-hidden">
       {/* header */}
       <div className="bg-gradient-to-r from-emerald-50 to-teal-50 px-5 py-4 border-b border-zinc-100">
-        <h2 className="text-base font-bold text-zinc-800">添加保健品</h2>
-        <p className="text-xs text-zinc-500 mt-0.5">
-          拍照、粘贴链接或输入文字，智能识别保健品信息
+        <h2 className="text-xl font-bold text-zinc-900">添加保健品</h2>
+        <p className="text-sm text-zinc-600 mt-1">
+          拍照就能添加，也可以粘贴链接或输入文字
         </p>
       </div>
 
       {/* tabs */}
-      <div className="flex border-b border-zinc-100">
+      <div className="flex border-b-2 border-zinc-100">
         {TAB_CONFIG.map((tab) => (
           <button
             key={tab.mode}
             onClick={() => switchMode(tab.mode)}
-            className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm font-semibold transition-all ${
+            className={`flex-1 flex items-center justify-center gap-2 py-4 text-base font-bold transition-all ${
               mode === tab.mode
-                ? "border-b-2 border-emerald-500 text-emerald-700 bg-emerald-50/50"
-                : "text-zinc-400 hover:text-zinc-600"
+                ? "border-b-4 border-emerald-500 text-emerald-700 bg-emerald-50/50"
+                : "text-zinc-500 hover:text-zinc-700"
             }`}
           >
-            <span className="text-base">{tab.icon}</span>
+            <span className="text-xl">{tab.icon}</span>
             {tab.label}
           </button>
         ))}
@@ -127,21 +127,21 @@ export default function SupplementInput({ onSubmit, disabled }: SupplementInputP
                   alt="Preview"
                   className="max-h-48 rounded-lg shadow-md"
                 />
-                <span className="text-xs text-zinc-400">
+                <span className="text-sm text-zinc-500">
                   点击重新选择图片
                 </span>
               </div>
             ) : (
               <>
-                <div className="flex h-14 w-14 items-center justify-center rounded-full bg-emerald-100 text-3xl">
+                <div className="flex h-20 w-20 items-center justify-center rounded-full bg-emerald-100 text-4xl">
                   📸
                 </div>
                 <div className="text-center">
-                  <p className="text-sm font-semibold text-zinc-700">
-                    点击上传或拖拽图片
+                  <p className="text-lg font-bold text-zinc-800">
+                    点击这里拍照
                   </p>
-                  <p className="text-xs text-zinc-400 mt-1">
-                    支持拍照或从相册选择保健品照片
+                  <p className="text-sm text-zinc-500 mt-1">
+                    也可以从相册选择保健品照片
                   </p>
                 </div>
               </>
@@ -159,13 +159,13 @@ export default function SupplementInput({ onSubmit, disabled }: SupplementInputP
                 value={link}
                 onChange={(e) => setLink(e.target.value)}
                 disabled={disabled}
-                className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3.5 pl-11 text-sm outline-none transition-all focus:border-emerald-400 focus:bg-white focus:ring-2 focus:ring-emerald-100 disabled:opacity-50"
+                className="w-full rounded-xl border-2 border-zinc-300 bg-zinc-50 px-4 py-4 pl-12 text-base outline-none transition-all focus:border-emerald-400 focus:bg-white focus:ring-2 focus:ring-emerald-100 disabled:opacity-50"
               />
-              <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-400 text-base">
+              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500 text-xl">
                 🔗
               </span>
             </div>
-            <p className="text-xs text-zinc-400">
+            <p className="text-sm text-zinc-500">
               支持淘宝、京东、iHerb 等主流电商平台的产品链接
             </p>
           </div>
@@ -180,9 +180,9 @@ export default function SupplementInput({ onSubmit, disabled }: SupplementInputP
               onChange={(e) => setText(e.target.value)}
               disabled={disabled}
               rows={4}
-              className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3.5 text-sm outline-none resize-none transition-all focus:border-emerald-400 focus:bg-white focus:ring-2 focus:ring-emerald-100 disabled:opacity-50"
+              className="w-full rounded-xl border-2 border-zinc-300 bg-zinc-50 px-4 py-4 text-base outline-none resize-none transition-all focus:border-emerald-400 focus:bg-white focus:ring-2 focus:ring-emerald-100 disabled:opacity-50"
             />
-            <p className="text-xs text-zinc-400">
+            <p className="text-sm text-zinc-500">
               尽可能详细描述，以获取更准确的服用建议
             </p>
           </div>
@@ -192,7 +192,7 @@ export default function SupplementInput({ onSubmit, disabled }: SupplementInputP
         <button
           onClick={handleSubmit}
           disabled={!canSubmit}
-          className={`mt-4 w-full rounded-xl py-3 text-sm font-bold transition-all active:scale-[0.98] ${
+          className={`mt-4 w-full rounded-xl py-4 text-lg font-bold transition-all active:scale-[0.98] ${
             disabled
               ? "bg-zinc-100 text-zinc-400 cursor-wait"
               : canSubmit
@@ -200,7 +200,7 @@ export default function SupplementInput({ onSubmit, disabled }: SupplementInputP
                 : "bg-zinc-100 text-zinc-400 cursor-not-allowed"
           }`}
         >
-          {disabled ? "⏳ AI 分析中..." : "🔍 开始分析"}
+          {disabled ? "⏳ AI 分析中，请稍等..." : "🔍 开始分析"}
         </button>
       </div>
     </div>

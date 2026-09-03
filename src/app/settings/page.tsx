@@ -7,6 +7,7 @@ import type { TimeSlot } from "@/lib/types";
 import type { NotificationSettings } from "@/lib/notification/types";
 import { loadSettings, saveSettings } from "@/lib/notification/settings-store";
 import { requestBrowserPermission } from "@/lib/notification/service";
+import { feedbackInfo } from "@/lib/feedback";
 
 export default function SettingsPage() {
   const router = useRouter();
@@ -31,9 +32,17 @@ export default function SettingsPage() {
     const next = { ...settings, ...partial };
     setSettings(next);
     saveSettings(next);
+    if (typeof partial.enabled === "boolean") {
+      feedbackInfo(partial.enabled ? "通知提醒已开启" : "通知提醒已关闭");
+    }
   }
 
   function toggleNode(slot: TimeSlot) {
+    const nextEnabled = !settings.nodeSettings[slot]?.enabled;
+    const node = TIME_NODES.find((n) => n.slot === slot);
+    feedbackInfo(
+      `${node?.label ?? ""}提醒已${nextEnabled ? "开启" : "关闭"}`,
+    );
     const next = {
       ...settings,
       nodeSettings: {
@@ -174,18 +183,18 @@ export default function SettingsPage() {
   return (
     <div className="flex flex-1 flex-col bg-zinc-50">
       {/* top bar */}
-      <header className="sticky top-0 z-10 bg-white/80 backdrop-blur-md border-b border-zinc-100">
+      <header className="sticky top-0 z-10 bg-white/90 backdrop-blur-md border-b-2 border-zinc-200">
         <div className="mx-auto flex max-w-2xl items-center gap-3 px-5 py-3.5">
           <button
             onClick={() => router.back()}
-            className="flex items-center gap-1 text-sm font-semibold text-zinc-500 hover:text-zinc-800 transition-colors"
+            className="flex items-center gap-1 rounded-xl px-3 py-2 text-base font-bold text-zinc-700 hover:bg-zinc-100 active:scale-95 transition-all"
           >
             ← 返回
           </button>
           <div className="flex-1 text-center">
-            <h1 className="text-base font-extrabold text-zinc-900">⚙️ 提醒设置</h1>
+            <h1 className="text-xl font-extrabold text-zinc-900">⚙️ 提醒设置</h1>
           </div>
-          <div className="w-12" />
+          <div className="w-16" />
         </div>
       </header>
 
@@ -201,18 +210,18 @@ export default function SettingsPage() {
           </div>
 
           <div className="flex items-center gap-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-zinc-100 text-2xl grayscale">
+            <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-zinc-100 text-3xl grayscale">
               💬
             </div>
             <div className="flex-1 min-w-0">
-              <h2 className="text-sm font-bold text-zinc-400">微信订阅号通知</h2>
-              <p className="text-xs text-zinc-300 mt-0.5">
+              <h2 className="text-base font-bold text-zinc-500">微信订阅号通知</h2>
+              <p className="text-sm text-zinc-400 mt-1">
                 暂未上线 · 请使用下方 PWA 桌面强提醒替代
               </p>
             </div>
             <button
               disabled
-              className="shrink-0 rounded-xl px-4 py-2 text-xs font-bold bg-zinc-100 text-zinc-300 cursor-not-allowed"
+              className="shrink-0 rounded-xl px-4 py-2.5 text-sm font-bold bg-zinc-100 text-zinc-400 cursor-not-allowed"
             >
               暂不可用
             </button>
@@ -222,22 +231,25 @@ export default function SettingsPage() {
         {/* ---- 通知开关 ---- */}
         <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm space-y-5">
           {/* 总开关 */}
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-4">
             <div>
-              <h2 className="text-sm font-bold text-zinc-800">启用通知提醒</h2>
-              <p className="text-xs text-zinc-400 mt-0.5">
+              <h2 className="text-lg font-bold text-zinc-900">启用通知提醒</h2>
+              <p className="text-sm text-zinc-500 mt-1">
                 关闭后不会收到任何服用提醒
               </p>
             </div>
             <button
+              role="switch"
+              aria-checked={settings.enabled}
+              aria-label="启用通知提醒"
               onClick={() => updateAndSave({ enabled: !settings.enabled })}
-              className={`relative h-7 w-12 rounded-full transition-colors ${
+              className={`relative h-11 w-20 shrink-0 rounded-full transition-colors ${
                 settings.enabled ? "bg-emerald-500" : "bg-zinc-300"
               }`}
             >
               <span
-                className={`absolute top-0.5 h-6 w-6 rounded-full bg-white shadow transition-transform ${
-                  settings.enabled ? "left-[22px]" : "left-0.5"
+                className={`absolute top-0.5 h-9 w-9 rounded-full bg-white shadow transition-transform ${
+                  settings.enabled ? "left-[47px]" : "left-0.5"
                 }`}
               />
             </button>
@@ -246,10 +258,10 @@ export default function SettingsPage() {
           <hr className="border-zinc-100" />
 
           {/* 提前通知时间 */}
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-4">
             <div>
-              <h2 className="text-sm font-bold text-zinc-800">提前通知</h2>
-              <p className="text-xs text-zinc-400 mt-0.5">
+              <h2 className="text-lg font-bold text-zinc-900">提前通知</h2>
+              <p className="text-sm text-zinc-500 mt-1">
                 提前 {settings.advanceMinutes} 分钟推送提醒
               </p>
             </div>
@@ -257,7 +269,7 @@ export default function SettingsPage() {
               value={settings.advanceMinutes}
               onChange={(e) => updateAndSave({ advanceMinutes: Number(e.target.value) })}
               disabled={!settings.enabled}
-              className="rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm font-semibold text-zinc-700 outline-none focus:border-emerald-400 disabled:opacity-40"
+              className="rounded-xl border-2 border-zinc-300 bg-zinc-50 px-4 py-3 text-base font-bold text-zinc-800 outline-none focus:border-emerald-400 disabled:opacity-40"
             >
               <option value={0}>准时</option>
               <option value={5}>提前 5 分钟</option>
@@ -271,39 +283,44 @@ export default function SettingsPage() {
 
           {/* 各时间节点开关 */}
           <div>
-            <h2 className="text-sm font-bold text-zinc-800 mb-3">提醒节点</h2>
-            <div className="grid grid-cols-1 gap-1.5">
+            <h2 className="text-lg font-bold text-zinc-900 mb-3">提醒节点</h2>
+            <div className="grid grid-cols-1 gap-2">
               {TIME_NODES.map((node) => {
                 const nodeCfg = settings.nodeSettings[node.slot];
                 const enabled = nodeCfg?.enabled ?? true;
                 return (
                   <div
                     key={node.slot}
-                    className={`flex items-center justify-between rounded-xl px-3.5 py-2.5 transition-colors ${
-                      enabled ? "bg-zinc-50" : "bg-white opacity-50"
+                    className={`flex items-center justify-between gap-4 rounded-xl border px-4 py-3.5 transition-colors ${
+                      enabled
+                        ? "bg-zinc-50 border-zinc-200"
+                        : "bg-white border-zinc-100 opacity-60"
                     }`}
                   >
                     <div className="flex items-center gap-3">
-                      <span className="text-lg">{node.icon}</span>
+                      <span className="text-2xl">{node.icon}</span>
                       <div>
-                        <span className="text-sm font-semibold text-zinc-700">
+                        <span className="text-base font-bold text-zinc-800">
                           {node.label}
                         </span>
-                        <span className="ml-2 text-xs text-zinc-400 font-mono">
+                        <span className="ml-2 text-sm text-zinc-500 font-mono">
                           {node.typicalTime}
                         </span>
                       </div>
                     </div>
                     <button
+                      role="switch"
+                      aria-checked={enabled}
+                      aria-label={`${node.label}提醒开关`}
                       onClick={() => toggleNode(node.slot)}
                       disabled={!settings.enabled}
-                      className={`relative h-6 w-10 rounded-full transition-colors ${
-                        enabled ? "bg-emerald-400" : "bg-zinc-300"
+                      className={`relative h-11 w-20 shrink-0 rounded-full transition-colors ${
+                        enabled ? "bg-emerald-500" : "bg-zinc-300"
                       } disabled:opacity-30`}
                     >
                       <span
-                        className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${
-                          enabled ? "left-[18px]" : "left-0.5"
+                        className={`absolute top-0.5 h-9 w-9 rounded-full bg-white shadow transition-transform ${
+                          enabled ? "left-[47px]" : "left-0.5"
                         }`}
                       />
                     </button>
@@ -316,22 +333,22 @@ export default function SettingsPage() {
 
         {/* ---- 测试通知（浏览器）---- */}
         <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-4">
             <div>
-              <h2 className="text-sm font-bold text-zinc-800">测试通知（浏览器）</h2>
-              <p className="text-xs text-zinc-400 mt-0.5">
+              <h2 className="text-lg font-bold text-zinc-900">测试通知（浏览器）</h2>
+              <p className="text-sm text-zinc-500 mt-1">
                 发送一条简单的浏览器通知，验证基本通知通道
               </p>
             </div>
             <button
               onClick={handleTestNotification}
-              className="rounded-xl border border-zinc-300 px-4 py-2 text-xs font-bold text-zinc-600 hover:bg-zinc-50 active:scale-95 transition-all"
+              className="shrink-0 rounded-xl border-2 border-zinc-400 px-5 py-3 text-base font-bold text-zinc-700 hover:bg-zinc-50 active:scale-95 transition-all"
             >
               🔔 发送测试
             </button>
           </div>
           {testResult && (
-            <p className="mt-3 rounded-lg bg-zinc-50 px-3 py-2 text-xs font-medium text-zinc-600">
+            <p className="mt-3 rounded-lg bg-zinc-50 px-4 py-3 text-sm font-medium text-zinc-700">
               {testResult}
             </p>
           )}
@@ -339,27 +356,27 @@ export default function SettingsPage() {
 
         {/* ---- 微信测试推送 ---- */}
         <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-4">
             <div>
-              <h2 className="text-sm font-bold text-zinc-800">微信即时测试推送</h2>
-              <p className="text-xs text-zinc-400 mt-0.5">
+              <h2 className="text-lg font-bold text-zinc-900">微信即时测试推送</h2>
+              <p className="text-sm text-zinc-500 mt-1">
                 向已绑定的微信发送一条真实模板消息，验证推送链路
               </p>
             </div>
             <button
               onClick={handleWechatTestPush}
               disabled={wechatPushing}
-              className={`rounded-xl px-4 py-2 text-xs font-bold transition-all active:scale-95 ${
+              className={`shrink-0 rounded-xl px-5 py-3 text-base font-bold transition-all active:scale-95 ${
                 wechatPushing
                   ? "bg-zinc-100 text-zinc-400 cursor-wait"
                   : "bg-green-600 text-white hover:bg-green-700 shadow-md shadow-green-200"
               }`}
             >
-              {wechatPushing ? "⏳ 发送中..." : "📲 发送即时测试消息"}
+              {wechatPushing ? "⏳ 发送中..." : "📲 发送测试消息"}
             </button>
           </div>
           {wechatPushResult && (
-            <p className={`mt-3 rounded-lg px-3 py-2 text-xs font-medium ${
+            <p className={`mt-3 rounded-lg px-4 py-3 text-sm font-medium ${
               wechatPushResult.startsWith("✅")
                 ? "bg-green-50 text-green-700"
                 : wechatPushResult.startsWith("⏳")
@@ -373,21 +390,21 @@ export default function SettingsPage() {
 
         {/* ---- PWA 桌面强提醒（Notification Actions）---- */}
         <section className="rounded-2xl border-2 border-emerald-200 bg-gradient-to-br from-emerald-50/60 to-white p-5 shadow-md">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500 text-white text-lg shadow-md shadow-emerald-200">
+          <div className="flex items-center gap-4 mb-4">
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-500 text-white text-2xl shadow-md shadow-emerald-200">
               🚀
             </div>
             <div>
-              <h2 className="text-sm font-extrabold text-emerald-800">
+              <h2 className="text-lg font-extrabold text-emerald-800">
                 配置并开启桌面强提醒
               </h2>
-              <p className="text-xs text-emerald-600/70 mt-0.5">
+              <p className="text-sm text-emerald-700/80 mt-1">
                 通知携带快捷操作按钮，锁屏界面也能一键打卡
               </p>
             </div>
           </div>
 
-          <p className="text-xs text-zinc-500 mb-4 leading-relaxed">
+          <p className="text-sm text-zinc-600 mb-4 leading-relaxed">
             点击下方按钮后，系统将授权通知权限并发送一条携带
             <span className="font-bold text-emerald-700">「✅ 已服用」</span>
             和
@@ -398,7 +415,7 @@ export default function SettingsPage() {
           <button
             onClick={handlePwaStrongReminder}
             disabled={pwaLoading}
-            className={`w-full rounded-xl py-3.5 text-sm font-bold transition-all active:scale-[0.98] ${
+            className={`w-full rounded-xl py-4 text-lg font-bold transition-all active:scale-[0.98] ${
               pwaLoading
                 ? "bg-zinc-200 text-zinc-400 cursor-wait"
                 : "bg-emerald-600 text-white hover:bg-emerald-700 shadow-lg shadow-emerald-300"
@@ -409,7 +426,7 @@ export default function SettingsPage() {
 
           {pwaResult && (
             <div
-              className={`mt-4 rounded-xl px-4 py-3 text-xs font-medium leading-relaxed ${
+              className={`mt-4 rounded-xl px-4 py-3 text-sm font-medium leading-relaxed ${
                 pwaResult.startsWith("✅")
                   ? "bg-emerald-50 border border-emerald-200 text-emerald-800"
                   : pwaResult.startsWith("⏳")
@@ -422,7 +439,7 @@ export default function SettingsPage() {
           )}
 
           {/* 使用提示 */}
-          <div className="mt-4 grid grid-cols-3 gap-2">
+          <div className="mt-4 grid grid-cols-1 gap-2">
             {[
               { icon: "📱", text: "添加到主屏幕获得完整体验" },
               { icon: "🔔", text: "锁屏通知长按显示操作按钮" },
@@ -430,10 +447,10 @@ export default function SettingsPage() {
             ].map((tip) => (
               <div
                 key={tip.icon}
-                className="rounded-lg bg-white/80 border border-zinc-100 px-2.5 py-2 text-center"
+                className="flex items-center gap-3 rounded-lg bg-white/80 border border-zinc-100 px-4 py-3"
               >
-                <div className="text-lg">{tip.icon}</div>
-                <p className="text-[10px] text-zinc-500 mt-1 leading-tight">{tip.text}</p>
+                <div className="text-2xl">{tip.icon}</div>
+                <p className="text-sm text-zinc-700">{tip.text}</p>
               </div>
             ))}
           </div>

@@ -42,36 +42,41 @@ function SupplementBadge({
 
   return (
     <div
-      className={`flex items-center justify-between gap-3 rounded-xl border px-4 py-3 text-sm transition-all ${config.badgeClass}`}
+      className={`flex flex-col gap-2 rounded-xl border px-4 py-4 text-base transition-all ${config.badgeClass}`}
     >
-      <div className="flex flex-col gap-0.5 min-w-0">
-        <span className="font-semibold truncate">{supplement.name}</span>
-        <span className="text-xs opacity-70">{supplement.dosage}</span>
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex flex-col gap-1 min-w-0">
+          <span className="text-lg font-bold truncate">{supplement.name}</span>
+          <span className="text-sm opacity-80">{supplement.dosage}</span>
+        </div>
+        {record.status !== "pending" && (
+          <span className="text-sm font-bold shrink-0">{config.badge}</span>
+        )}
       </div>
 
-      {record.status === "pending" ? (
-        <div className="flex items-center gap-1 shrink-0">
+      {record.status === "pending" && (
+        <div className="flex flex-col gap-2">
           <button
             onClick={() => onAction(supplement.id, record.timeSlot, "taken")}
-            className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700 active:scale-95 transition-all"
+            className="w-full rounded-xl bg-emerald-600 py-4 text-xl font-bold text-white hover:bg-emerald-700 active:scale-95 transition-all shadow-md shadow-emerald-200"
           >
-            已服用
+            ✅ 已服用
           </button>
-          <button
-            onClick={() => onAction(supplement.id, record.timeSlot, "postponed")}
-            className="rounded-lg bg-yellow-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-yellow-600 active:scale-95 transition-all"
-          >
-            稍后
-          </button>
-          <button
-            onClick={() => onAction(supplement.id, record.timeSlot, "skipped")}
-            className="rounded-lg border border-zinc-300 px-3 py-1.5 text-xs font-medium text-zinc-500 hover:bg-zinc-50 active:scale-95 transition-all"
-          >
-            跳过
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => onAction(supplement.id, record.timeSlot, "postponed")}
+              className="flex-1 rounded-xl bg-amber-500 py-3 text-base font-bold text-white hover:bg-amber-600 active:scale-95 transition-all"
+            >
+              ⏰ 稍后提醒
+            </button>
+            <button
+              onClick={() => onAction(supplement.id, record.timeSlot, "skipped")}
+              className="flex-1 rounded-xl border-2 border-zinc-400 py-3 text-base font-bold text-zinc-600 hover:bg-zinc-100 active:scale-95 transition-all"
+            >
+              今天不吃
+            </button>
+          </div>
         </div>
-      ) : (
-        <span className="text-xs font-semibold shrink-0">{config.badge}</span>
       )}
     </div>
   );
@@ -96,7 +101,7 @@ export default function TimeNodeCard({
       {/* timeline connector */}
       <div className="flex flex-col items-center shrink-0">
         <div
-          className={`flex h-10 w-10 items-center justify-center rounded-full text-lg shadow-sm border-2 transition-all ${
+          className={`flex h-12 w-12 items-center justify-center rounded-full text-2xl shadow-sm border-2 transition-all ${
             allDone
               ? "bg-emerald-50 border-emerald-300"
               : hasContent
@@ -110,30 +115,30 @@ export default function TimeNodeCard({
 
       {/* content */}
       <div className="flex-1 pb-6">
-        <div className="flex items-center gap-2 mb-2">
+        <div className="flex flex-wrap items-center gap-2 mb-2">
           <h3
-            className={`text-sm font-bold ${
-              isCurrent ? "text-emerald-700" : "text-zinc-800"
+            className={`text-lg font-bold ${
+              isCurrent ? "text-emerald-700" : "text-zinc-900"
             }`}
           >
             {node.label}
           </h3>
-          <span className="text-xs text-zinc-400 font-mono">{node.typicalTime}</span>
+          <span className="text-sm text-zinc-500 font-mono">{node.typicalTime}</span>
           {isCurrent && (
-            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-700">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-bold text-emerald-700">
+              <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
               当前
             </span>
           )}
           {allDone && hasContent && (
-            <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-600">
+            <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-600">
               全部完成 ✓
             </span>
           )}
         </div>
 
         {hasContent ? (
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-col gap-3">
             {nodeRecords.map((record) => {
               const supplement = nodeSupplements.find((s) => s.id === record.supplementId);
               if (!supplement) return null;
@@ -148,7 +153,7 @@ export default function TimeNodeCard({
             })}
           </div>
         ) : (
-          <p className="text-xs text-zinc-400">暂无服用安排</p>
+          <p className="text-sm text-zinc-500">暂无服用安排</p>
         )}
       </div>
     </div>

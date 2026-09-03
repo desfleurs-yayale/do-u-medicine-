@@ -42,18 +42,18 @@ export default function TimeNodeBoard({
   return (
     <div>
       {/* 今日进度条 */}
-      <div className="mb-6 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 p-5 text-white shadow-lg">
+      <div className="mb-6 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 p-6 text-white shadow-lg">
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-sm font-semibold opacity-90">📋 今日服用进度</h2>
-          <span className="text-2xl font-extrabold tabular-nums">{progressPct}%</span>
+          <h2 className="text-base font-semibold opacity-90">📋 今日服用进度</h2>
+          <span className="text-4xl font-extrabold tabular-nums">{progressPct}%</span>
         </div>
-        <div className="h-2.5 rounded-full bg-white/25 overflow-hidden">
+        <div className="h-3.5 rounded-full bg-white/25 overflow-hidden">
           <div
             className="h-full rounded-full bg-white transition-all duration-700 ease-out"
             style={{ width: `${progressPct}%` }}
           />
         </div>
-        <div className="flex justify-between mt-2 text-xs opacity-80">
+        <div className="flex justify-between mt-3 text-sm opacity-90">
           <span>
             已服用 {takenCount}/{totalCount}
           </span>
@@ -64,7 +64,7 @@ export default function TimeNodeBoard({
       {/* 时间线 */}
       <div className="relative">
         {/* 竖线，从第一个节点到最后一个 */}
-        <div className="absolute left-5 top-5 bottom-5 w-px bg-zinc-200" />
+        <div className="absolute left-6 top-6 bottom-6 w-px bg-zinc-200" />
 
         <div className="flex flex-col">
           {TIME_NODES.map((node, idx) => (

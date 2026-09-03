@@ -13,6 +13,12 @@ import type { AnalysisResult } from "@/lib/ai/analyzer";
 import { assignSupplementColor } from "@/lib/ai/analyzer";
 import { loadSettings } from "@/lib/notification/settings-store";
 import { startScheduler, stopScheduler } from "@/lib/notification/scheduler";
+import {
+  feedbackTaken,
+  feedbackInfo,
+  feedbackAnalysisDone,
+  feedbackError,
+} from "@/lib/feedback";
 
 export default function Home() {
   const router = useRouter();
@@ -40,6 +46,15 @@ export default function Home() {
   }, [intakeRecords, supplements]);
 
   function handleIntakeAction(supplementId: string, slot: string, action: IntakeAction) {
+    // 适老化：打卡/跳过等关键操作给予声音 + 震动 + 语音三重反馈
+    const supplement = supplements.find((s) => s.id === supplementId);
+    if (action === "taken") {
+      feedbackTaken(supplement?.name);
+    } else if (action === "postponed") {
+      feedbackInfo(`好的，稍后再提醒您服用${supplement?.name ?? ""}`);
+    } else {
+      feedbackInfo(`已跳过${supplement?.name ?? ""}，今天的安排`);
+    }
     setIntakeRecords((prev) =>
       prev.map((r) =>
         r.supplementId === supplementId && r.timeSlot === slot
@@ -103,6 +118,7 @@ export default function Home() {
       }
 
       const result: AnalysisResult = await response.json();
+      feedbackAnalysisDone(result.name);
 
       // 3. 用真实分析结果更新占位卡片
       setSupplements((prev) =>
@@ -129,6 +145,7 @@ export default function Home() {
       });
     } catch (err) {
       const message = err instanceof Error ? err.message : "分析失败";
+      feedbackError(message);
       setSupplements((prev) =>
         prev.map((s) =>
           s.id === tempId
@@ -159,25 +176,26 @@ export default function Home() {
   return (
     <div className="flex flex-1 flex-col bg-zinc-50">
       {/* top bar */}
-      <header className="sticky top-0 z-10 bg-white/80 backdrop-blur-md border-b border-zinc-100">
+      <header className="sticky top-0 z-10 bg-white/90 backdrop-blur-md border-b-2 border-zinc-200">
         <div className="mx-auto flex max-w-2xl items-center justify-between px-5 py-3.5">
           <div>
-            <h1 className="text-lg font-extrabold tracking-tight text-zinc-900">
+            <h1 className="text-2xl font-extrabold tracking-tight text-zinc-900">
               今天你保健了没？
             </h1>
-            <p className="text-xs text-zinc-400 mt-0.5">{dateStr}</p>
+            <p className="text-sm text-zinc-500 mt-1">{dateStr}</p>
           </div>
           <div className="flex items-center gap-2">
             {pendingCount > 0 && (
-              <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-orange-500 px-1.5 text-[10px] font-bold text-white">
+              <span className="inline-flex h-8 min-w-8 items-center justify-center rounded-full bg-orange-500 px-2 text-sm font-bold text-white">
                 {pendingCount}
               </span>
             )}
             <button
               onClick={() => router.push("/settings")}
-              className="rounded-xl border border-zinc-200 px-3 py-1.5 text-xs font-semibold text-zinc-500 hover:bg-zinc-50 transition-colors"
+              aria-label="前往设置页面"
+              className="rounded-xl border-2 border-zinc-300 px-4 py-2.5 text-base font-bold text-zinc-700 hover:bg-zinc-100 active:scale-95 transition-all"
             >
-              ⚙️
+              ⚙️ 设置
             </button>
           </div>
         </div>
@@ -194,22 +212,22 @@ export default function Home() {
       </main>
 
       {/* bottom nav */}
-      <nav className="sticky bottom-0 z-10 bg-white/80 backdrop-blur-md border-t border-zinc-100">
+      <nav className="sticky bottom-0 z-10 bg-white/90 backdrop-blur-md border-t-2 border-zinc-200">
         <div className="mx-auto flex max-w-2xl items-center justify-around px-5 py-2">
-          <button className="flex flex-col items-center gap-0.5 py-1 px-4 rounded-xl bg-emerald-50 text-emerald-700">
-            <span className="text-lg">🏠</span>
-            <span className="text-[10px] font-bold">首页</span>
+          <button className="flex flex-col items-center gap-1 py-2 px-6 rounded-xl bg-emerald-50 text-emerald-700">
+            <span className="text-2xl">🏠</span>
+            <span className="text-sm font-bold">首页</span>
           </button>
-          <button className="flex flex-col items-center gap-0.5 py-1 px-4 rounded-xl text-zinc-400 hover:text-zinc-600 transition-colors">
-            <span className="text-lg">📊</span>
-            <span className="text-[10px] font-bold">统计</span>
+          <button className="flex flex-col items-center gap-1 py-2 px-6 rounded-xl text-zinc-500 hover:text-zinc-700 transition-colors">
+            <span className="text-2xl">📊</span>
+            <span className="text-sm font-bold">统计</span>
           </button>
           <button
             onClick={() => router.push("/settings")}
-            className="flex flex-col items-center gap-0.5 py-1 px-4 rounded-xl text-zinc-400 hover:text-zinc-600 transition-colors"
+            className="flex flex-col items-center gap-1 py-2 px-6 rounded-xl text-zinc-500 hover:text-zinc-700 transition-colors"
           >
-            <span className="text-lg">⚙️</span>
-            <span className="text-[10px] font-bold">设置</span>
+            <span className="text-2xl">⚙️</span>
+            <span className="text-sm font-bold">设置</span>
           </button>
         </div>
       </nav>

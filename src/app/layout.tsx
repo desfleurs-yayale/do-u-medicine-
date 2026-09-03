@@ -16,8 +16,9 @@ const geistMono = Geist_Mono({
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
+  // 适老化：允许用户双指缩放，不限制最大倍数
+  maximumScale: 5,
+  userScalable: true,
   viewportFit: "cover",
   themeColor: "#059669",
 };
