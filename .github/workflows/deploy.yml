@@ -3,7 +3,6 @@ name: Deploy preview to surge.sh
 on:
   push:
     branches: [silver-memoir-preview]
-  workflow_dispatch:
 
 permissions:
   contents: read
@@ -21,19 +20,22 @@ jobs:
       - name: Install surge
         run: npm install -g surge
 
-      - name: Deploy to surge.sh
+      - name: Deploy to surge.sh (two domains)
         env:
           SURGE_TOKEN: 8bf75edb518aadde91176bc66391b139
         run: |
           mkdir -p site
           cp index.html site/
           surge --token "$SURGE_TOKEN" site/ guangyin-shoutie.surge.sh
+          surge --token "$SURGE_TOKEN" site/ guangyin-shoutie-2.surge.sh
 
       - name: Verify deployment
         run: |
           sleep 8
-          CODE=$(curl -s -o /tmp/page.html -w "%{http_code}" https://guangyin-shoutie.surge.sh/)
-          SIZE=$(wc -c < /tmp/page.html)
-          echo "http=$CODE size=$SIZE"
-          grep -q "光阴手帖" /tmp/page.html && echo "CONTENT OK" || echo "CONTENT MISMATCH"
-          [ "$CODE" = "200" ] && [ "$SIZE" -gt 100000 ]
+          for D in guangyin-shoutie.surge.sh guangyin-shoutie-2.surge.sh; do
+            CODE=$(curl -s -o /tmp/p.html -w "%{http_code}" https://$D/)
+            SIZE=$(wc -c < /tmp/p.html)
+            echo "$D http=$CODE size=$SIZE"
+            grep -q "光阴手帖" /tmp/p.html && echo "$D CONTENT OK" || echo "$D CONTENT MISMATCH"
+            [ "$CODE" = "200" ] && [ "$SIZE" -gt 100000 ]
+          done
