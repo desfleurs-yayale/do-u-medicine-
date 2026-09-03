@@ -1,0 +1,2401 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#2b2119">
+<meta name="description" content="光阴手帖·岁月的留声机——面向银发长辈的零门槛口述人生微自传。讲述您的故事，生成一页逐渐显影的人生手帖，归入人生长卷。">
+<title>光阴手帖 · 岁月的留声机</title>
+<style>
+/* ============================================================
+   光阴手帖 v1.4 — 傍晚室内光线 · 旧照片显影 · 磁带声音 · 克制的纸张质感
+   零外部依赖单文件应用
+   ============================================================ */
+:root{
+  --paper:#F7F1E3;          /* 宣纸底 */
+  --paper-2:#FBF7ED;        /* 亮纸面 */
+  --paper-3:#EFE6D2;        /* 沉纸面 */
+  --ink:#3E2F21;            /* 深棕墨 */
+  --ink-2:#6B5540;          /* 次级墨 */
+  --ink-3:#997F62;          /* 弱墨 */
+  --amber:#B07E22;          /* 琥珀（克制） */
+  --amber-deep:#8A5E14;
+  --cinnabar:#B3432B;       /* 朱红（指针/录音点缀） */
+  --tape:#4A3A2A;           /* 磁带深棕 */
+  --line:#E2D5BB;           /* 纸纹线 */
+  --ok:#5B7A4A;
+  --shadow-1:0 2px 10px rgba(84,60,32,.08);
+  --shadow-2:0 10px 30px rgba(84,60,32,.16);
+  --radius:18px;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+html,body{height:100%;}
+body{
+  font-family:"PingFang SC","Hiragino Sans GB","Source Han Serif SC","Noto Serif SC","Microsoft YaHei",serif;
+  background:
+    radial-gradient(1200px 500px at 50% -10%, rgba(255,183,94,.20), rgba(255,183,94,0) 60%),
+    linear-gradient(180deg,#33261B 0%, #2B2119 40%, #241B13 100%);
+  color:var(--ink);
+  min-height:100vh;
+  display:flex;justify-content:center;
+  -webkit-font-smoothing:antialiased;
+  user-select:none;
+}
+button{font-family:inherit;border:none;background:none;cursor:pointer;color:inherit;}
+input,textarea{font-family:inherit;color:var(--ink);}
+.hidden{display:none !important;}
+
+/* ---------- 桌面居中手机框 / 移动全屏 ---------- */
+#app{
+  width:100%;max-width:430px;height:100dvh;min-height:560px;
+  background:
+    radial-gradient(700px 260px at 50% 0%, rgba(255,180,90,.16), rgba(255,180,90,0) 70%),
+    linear-gradient(180deg,#FBF6EA 0%, var(--paper) 30%, #F4ECDA 100%);
+  position:relative;overflow:hidden;
+  display:flex;flex-direction:column;
+}
+@media (min-width:768px){
+  body{align-items:center;padding:26px 0;}
+  #app{height:min(880px,calc(100dvh - 52px));border-radius:36px;box-shadow:0 0 0 10px #1E1710,0 0 0 12px #4A3A2A,var(--shadow-2);}
+}
+/* 纸张微粒质感 */
+#app::after{
+  content:"";position:absolute;inset:0;pointer-events:none;opacity:.5;z-index:0;
+  background-image:radial-gradient(rgba(120,90,50,.05) 1px, transparent 1.2px);
+  background-size:5px 5px;
+}
+.view{position:absolute;inset:0;display:flex;flex-direction:column;z-index:1;animation:viewIn .38s ease both;}
+@keyframes viewIn{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:none;}}
+
+/* ---------- 通用顶栏 ---------- */
+.topbar{
+  flex-shrink:0;display:flex;align-items:center;gap:10px;
+  padding:calc(env(safe-area-inset-top,0px) + 14px) 18px 10px;
+}
+.topbar .tb-title{font-size:20px;font-weight:700;letter-spacing:1px;color:var(--ink);flex:1;min-width:0;}
+.topbar .tb-sub{font-size:12.5px;color:var(--ink-3);margin-top:3px;letter-spacing:.5px;}
+.icon-btn{
+  width:42px;height:42px;border-radius:14px;background:var(--paper-2);
+  border:1.5px solid var(--line);display:flex;align-items:center;justify-content:center;
+  font-size:19px;box-shadow:var(--shadow-1);flex-shrink:0;transition:transform .15s;
+}
+.icon-btn:active{transform:scale(.94);}
+.scroll-area{flex:1;overflow-y:auto;overflow-x:hidden;padding:0 18px 26px;-webkit-overflow-scrolling:touch;}
+.scroll-area::-webkit-scrollbar{width:0;}
+
+/* ---------- 首页 ---------- */
+.hero-greet{margin:6px 0 14px;}
+.hero-greet h1{font-size:25px;font-weight:700;letter-spacing:1px;}
+.hero-greet p{font-size:13.5px;color:var(--ink-3);margin-top:5px;letter-spacing:.5px;}
+
+/* 主题卡堆叠区 */
+.deck{position:relative;height:236px;margin:4px 0 6px;}
+.deck .card-slot{position:absolute;inset:0;}
+.topic-card{
+  position:absolute;left:0;right:0;top:0;height:200px;
+  background:linear-gradient(165deg,var(--paper-2) 0%,#F6EEDC 100%);
+  border:1.5px solid #E4D6B8;border-radius:22px;
+  box-shadow:0 14px 34px rgba(96,68,32,.14);
+  padding:20px 20px 16px;display:flex;flex-direction:column;
+  transition:transform .4s cubic-bezier(.22,.9,.3,1.2),opacity .35s;
+  overflow:hidden;
+}
+.topic-card .tc-glow{ /* 旧照片显影光 */
+  content:"";position:absolute;inset:0;pointer-events:none;
+  background:radial-gradient(320px 130px at 85% 0%, rgba(255,196,110,.18), transparent 70%);
+}
+.topic-card.next{
+  transform:translateY(24px) scale(.94);opacity:.55;pointer-events:none;height:200px;
+  filter:saturate(.7);
+}
+.topic-card.swap-out{transform:translateY(-30px) scale(.92);opacity:0;}
+.topic-card.swap-in{animation:cardIn .45s cubic-bezier(.22,.9,.3,1.15) both;}
+@keyframes cardIn{from{transform:translateY(46px) scale(.9);opacity:0;}to{transform:none;opacity:1;}}
+.tc-reason{
+  font-size:12px;color:var(--amber-deep);background:rgba(200,150,60,.12);
+  border:1px dashed rgba(176,126,34,.45);border-radius:999px;
+  padding:3px 12px;align-self:flex-start;letter-spacing:.3px;
+}
+.tc-badge{font-size:12.5px;color:var(--cinnabar);font-weight:700;letter-spacing:1px;margin-bottom:6px;}
+.tc-title{font-size:22px;font-weight:700;letter-spacing:.5px;margin-top:10px;line-height:1.32;}
+.tc-desc{font-size:14px;color:var(--ink-2);margin-top:8px;line-height:1.6;}
+.tc-actions{margin-top:auto;display:flex;justify-content:space-between;align-items:flex-end;}
+.tc-talk{
+  font-size:17px;font-weight:700;color:#fff;letter-spacing:2px;
+  background:linear-gradient(150deg,#C08A2C,#96650F);
+  padding:10px 26px;border-radius:999px;box-shadow:0 6px 16px rgba(150,100,20,.35);
+}
+.tc-talk:active{transform:scale(.95);}
+.tc-skip{font-size:12.5px;color:var(--ink-3);padding:8px 6px;}
+.deck-pager{display:flex;justify-content:center;gap:6px;margin-top:2px;}
+.deck-pager i{width:7px;height:7px;border-radius:50%;background:#D9C9A6;transition:.3s;}
+.deck-pager i.on{background:var(--amber);width:20px;border-radius:4px;}
+
+.deck-toolbar{display:flex;justify-content:center;margin:12px 0 4px;}
+.btn-refresh{
+  display:flex;align-items:center;gap:8px;font-size:15px;font-weight:600;color:var(--amber-deep);
+  background:rgba(255,250,238,.9);border:1.5px solid #E0CFa8;border-radius:999px;padding:9px 26px;
+  box-shadow:var(--shadow-1);letter-spacing:2px;
+}
+.btn-refresh:active{transform:scale(.95);}
+.btn-refresh .ico{display:inline-block;transition:transform .5s;}
+.btn-refresh.spin .ico{transform:rotate(360deg);}
+
+/* 呼吸“开始讲” */
+.breath-zone{margin-top:auto;padding:22px 0 10px;display:flex;flex-direction:column;align-items:center;}
+.breath-hint{font-size:12.5px;color:var(--ink-3);margin-bottom:12px;letter-spacing:1px;}
+.btn-breath{
+  position:relative;width:150px;height:150px;border-radius:50%;
+  background:radial-gradient(circle at 32% 28%, #D9A648, #B07C1E 58%, #8A5E14 100%);
+  box-shadow:0 16px 38px rgba(150,100,20,.45), inset 0 3px 8px rgba(255,235,190,.55), inset 0 -8px 18px rgba(90,58,8,.45);
+  color:#FFF9EA;font-size:24px;font-weight:700;letter-spacing:3px;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;
+  animation:breath 3.4s ease-in-out infinite;
+}
+.btn-breath small{font-size:12px;font-weight:500;letter-spacing:2px;opacity:.85;}
+.btn-breath::after{
+  content:"";position:absolute;inset:-14px;border-radius:50%;
+  border:1.5px solid rgba(176,126,34,.4);animation:halo 3.4s ease-in-out infinite;
+}
+@keyframes breath{0%,100%{transform:scale(1);}50%{transform:scale(1.055);}}
+@keyframes halo{0%,100%{transform:scale(.98);opacity:.7;}50%{transform:scale(1.09);opacity:.15;}}
+.btn-breath:active{transform:scale(.96);animation-play-state:paused;}
+
+/* 归档统计条 */
+.archive-strip{
+  margin:16px 0 4px;display:flex;align-items:center;gap:10px;
+  background:rgba(255,252,244,.72);border:1px solid var(--line);border-radius:16px;padding:11px 14px;
+}
+.archive-strip .n{font-size:21px;font-weight:700;color:var(--amber-deep);}
+.archive-strip .t{font-size:13px;color:var(--ink-2);line-height:1.4;flex:1;}
+.archive-strip .go{font-size:13px;color:var(--amber-deep);font-weight:700;letter-spacing:1px;padding:6px;}
+
+/* ---------- 电台对话室 ---------- */
+#viewChat{background:linear-gradient(180deg,#FBF6EA 0%,var(--paper) 45%,#F1E7D2 100%);}
+.radio-stage{flex-shrink:0;padding:4px 18px 0;position:relative;}
+.radio{
+  position:relative;background:linear-gradient(170deg,#57452F 0%,#4A3A2A 55%,#3C2E1F 100%);
+  border-radius:26px 26px 20px 20px;padding:14px 18px 14px;
+  box-shadow:0 14px 30px rgba(50,35,15,.35), inset 0 1px 0 rgba(255,230,180,.18);
+  color:#F2E4C8;
+}
+.radio::before{ /* 天线 */
+  content:"";position:absolute;top:-34px;right:44px;width:3.5px;height:44px;border-radius:3px;
+  background:linear-gradient(180deg,#C9B18A,#8A744F);transform:rotate(18deg);transform-origin:bottom;
+  box-shadow:0 0 0 1px rgba(0,0,0,.12);
+}
+.radio::after{content:"";position:absolute;top:-30px;right:41px;width:9px;height:9px;border-radius:50%;background:#D8C094;}
+.radio-top{display:flex;align-items:center;justify-content:space-between;}
+.radio-brand{font-size:12px;letter-spacing:3px;color:#D9C091;opacity:.9;}
+.radio-lamp{
+  width:11px;height:11px;border-radius:50%;background:#5A4630;
+  box-shadow:inset 0 1px 2px rgba(0,0,0,.5);transition:.3s;
+}
+.radio.working .radio-lamp{background:#E8893B;box-shadow:0 0 10px 2px rgba(232,137,59,.55);animation:lampBlink 1.6s ease-in-out infinite;}
+.radio.thinking .radio-lamp{background:#D9A83F;animation:lampBlink .8s ease-in-out infinite;}
+@keyframes lampBlink{0%,100%{opacity:1;}50%{opacity:.35;}}
+.dial{
+  position:relative;margin:12px 4px 10px;height:44px;border-radius:10px;
+  background:linear-gradient(180deg,#E9DDC2,#DCCB9F);
+  box-shadow:inset 0 2px 6px rgba(70,50,20,.35), 0 1px 0 rgba(255,240,200,.25);
+  overflow:hidden;
+}
+.dial .scale{
+  position:absolute;inset:0;display:flex;align-items:flex-end;justify-content:space-between;
+  padding:6px 12px 7px;
+}
+.dial .scale b{font-size:9.5px;color:#6B5540;font-weight:600;letter-spacing:.2px;}
+.dial .scale i{position:absolute;bottom:6px;width:1.5px;height:9px;background:#8A744F;}
+.dial .scale i.tall{height:14px;}
+.dial-pointer{
+  position:absolute;top:2px;bottom:2px;width:3px;border-radius:2px;background:var(--cinnabar);
+  box-shadow:0 0 8px rgba(179,67,43,.7);left:30%;transition:left 1.2s cubic-bezier(.4,.1,.2,1);
+}
+.tape-row{display:flex;align-items:center;gap:12px;}
+.tape{
+  flex:1;height:64px;border-radius:12px;background:linear-gradient(180deg,#2E2318,#241B12);
+  box-shadow:inset 0 2px 8px rgba(0,0,0,.55);position:relative;overflow:hidden;
+  display:flex;align-items:center;justify-content:center;gap:34px;
+}
+.reel{
+  width:40px;height:40px;border-radius:50%;border:3px solid #B99B62;position:relative;
+  background:radial-gradient(circle,#3A2D1D 30%,#241B12 31%);
+}
+.reel::before,.reel::after{content:"";position:absolute;background:#B99B62;border-radius:2px;}
+.reel::before{width:22px;height:4px;top:50%;left:50%;transform:translate(-50%,-50%) rotate(60deg);}
+.reel::after{width:22px;height:4px;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-60deg);}
+.radio.standby .reel{animation:reelSlow 7s linear infinite;}
+.radio.playing .reel{animation:reelSpin 2.6s linear infinite;}
+@keyframes reelSpin{to{transform:rotate(360deg);}}
+@keyframes reelSlow{to{transform:rotate(360deg);}}
+.tape-window{
+  position:absolute;top:8px;bottom:8px;left:50%;transform:translateX(-50%);
+  width:120px;border:1px solid rgba(185,155,98,.35);border-radius:8px;
+}
+.knob{
+  width:46px;height:46px;border-radius:50%;
+  background:conic-gradient(#6B5540 0 25%,#57452F 0 50%,#6B5540 0 75%,#57452F 0);
+  box-shadow:inset 0 0 0 5px #4A3A2A, 0 3px 6px rgba(0,0,0,.4);position:relative;flex-shrink:0;
+}
+.knob::after{content:"";position:absolute;top:4px;left:50%;width:3.5px;height:12px;background:#E8CFA0;border-radius:2px;transform:translateX(-50%);}
+.radio.standby .knob{box-shadow:inset 0 0 0 5px #4A3A2A, 0 0 10px rgba(232,137,59,.35);}
+.radio-state{font-size:12.5px;color:#D9C091;letter-spacing:2px;margin-top:10px;display:flex;justify-content:space-between;align-items:center;}
+.radio-state .freq{font-family:ui-monospace,Menlo,monospace;font-size:12px;opacity:.75;}
+
+/* 对话气泡流 */
+.chat-scroll{flex:1;overflow-y:auto;padding:16px 16px 8px;-webkit-overflow-scrolling:touch;}
+.chat-scroll::-webkit-scrollbar{width:0;}
+.bubble{max-width:86%;margin-bottom:12px;animation:bubIn .34s ease both;}
+@keyframes bubIn{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:none;}}
+.bubble.ai{display:flex;gap:9px;}
+.bubble.ai .avatar{
+  width:36px;height:36px;border-radius:50%;flex-shrink:0;
+  background:linear-gradient(150deg,#6B5540,#4A3A2A);color:#F2E4C8;
+  display:flex;align-items:center;justify-content:center;font-size:17px;
+  box-shadow:var(--shadow-1);
+}
+.bubble .b-text{
+  background:var(--paper-2);border:1.5px solid #E7DBBE;border-radius:4px 16px 16px 16px;
+  padding:11px 14px;font-size:16.5px;line-height:1.72;letter-spacing:.3px;color:var(--ink);
+  box-shadow:var(--shadow-1);
+}
+.bubble.user{display:flex;justify-content:flex-end;}
+.bubble.user .b-text{
+  background:linear-gradient(160deg,#E9D6A8,#E3CB92);border-color:#D6BE86;
+  border-radius:16px 4px 16px 16px;color:#4A3416;
+}
+.b-cursor{display:inline-block;width:2px;height:1em;background:var(--amber);vertical-align:-2px;animation:cur .8s steps(2) infinite;}
+@keyframes cur{50%{opacity:0;}}
+.bubble .b-audio{display:flex;align-items:center;gap:8px;margin-top:8px;font-size:12.5px;color:var(--ink-3);}
+/* 转写字幕（可修正） */
+.transcript-card{
+  margin:2px 0 12px;background:#FFFDF6;border:1.5px solid #E7DBBE;border-radius:14px;padding:12px 14px;
+  animation:bubIn .3s ease both;
+}
+.transcript-card .tc-label{font-size:12px;color:var(--ink-3);letter-spacing:1px;margin-bottom:7px;display:flex;justify-content:space-between;}
+.transcript-card textarea{
+  width:100%;min-height:76px;border:none;background:transparent;resize:none;outline:none;
+  font-size:16.5px;line-height:1.7;letter-spacing:.3px;color:var(--ink);
+}
+.transcript-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:6px;}
+.mini-btn{
+  font-size:14px;font-weight:600;padding:8px 20px;border-radius:999px;letter-spacing:1px;
+  background:var(--paper-3);color:var(--ink-2);border:1px solid #DCCB9F;
+}
+.mini-btn.primary{background:linear-gradient(150deg,#C08A2C,#96650F);color:#FFF7E4;border:none;box-shadow:0 4px 12px rgba(150,100,20,.3);}
+.mini-btn:active{transform:scale(.95);}
+
+/* 电台底部控制区 */
+.chat-controls{flex-shrink:0;padding:10px 16px calc(env(safe-area-inset-bottom,0px) + 12px);}
+.wav-strip{height:34px;margin-bottom:8px;display:flex;align-items:center;gap:2px;justify-content:center;}
+.wav-strip i{width:3px;border-radius:2px;background:#C7A45C;height:4px;transition:height .12s;}
+.radio.idle .wav-strip i{animation:wavIdle 2.2s ease-in-out infinite;}
+@keyframes wavIdle{0%,100%{height:4px;}50%{height:10px;}}
+.big-mic{
+  width:100%;border-radius:20px;padding:17px 0;font-size:20px;font-weight:700;letter-spacing:4px;
+  display:flex;align-items:center;justify-content:center;gap:12px;transition:.25s;
+  background:linear-gradient(150deg,#C08A2C,#96650F);color:#FFF9EA;
+  box-shadow:0 10px 24px rgba(150,100,20,.35), inset 0 2px 4px rgba(255,235,190,.4);
+}
+.big-mic.rec{
+  background:linear-gradient(150deg,#C0492F,#96331D);
+  box-shadow:0 10px 24px rgba(160,60,35,.4), inset 0 2px 4px rgba(255,200,180,.35);
+  animation:recPulse 1.6s ease-in-out infinite;letter-spacing:2px;
+}
+@keyframes recPulse{0%,100%{box-shadow:0 10px 24px rgba(160,60,35,.35);}50%{box-shadow:0 10px 34px rgba(160,60,35,.6);}}
+.big-mic.process{background:#8A744F;letter-spacing:2px;}
+.big-mic:active{transform:scale(.98);}
+.big-mic:disabled{filter:grayscale(.4);opacity:.7;}
+.chat-input-row{display:flex;gap:10px;margin-top:10px;}
+.chat-input-row input{
+  flex:1;border:1.5px solid #DCCB9F;background:#FFFDF6;border-radius:14px;
+  padding:13px 16px;font-size:17px;outline:none;letter-spacing:.3px;
+}
+.chat-input-row input:focus{border-color:var(--amber);}
+.chat-input-row .send-btn{
+  width:54px;border-radius:14px;background:var(--paper-3);border:1px solid #DCCB9F;
+  font-size:18px;color:var(--amber-deep);
+}
+.end-hint-row{display:flex;justify-content:center;margin-top:10px;}
+.link-btn{font-size:14px;color:var(--ink-3);letter-spacing:1px;padding:6px 14px;text-decoration:underline dotted;}
+.link-btn:active{opacity:.6;}
+
+/* 结束机制按钮组（气泡下方自然展开，非弹窗） */
+.finish-group{margin:-4px 0 14px 46px;animation:bubIn .4s ease both;}
+.finish-group .fg-title{font-size:13px;color:var(--ink-3);margin-bottom:8px;letter-spacing:1px;}
+.fg-btns{display:flex;flex-direction:column;gap:10px;}
+.btn-finish{
+  border-radius:16px;padding:14px 16px;font-size:17px;font-weight:700;letter-spacing:1px;
+  display:flex;align-items:center;gap:10px;line-height:1.4;
+}
+.btn-finish small{font-size:12px;font-weight:500;opacity:.75;display:block;letter-spacing:.3px;}
+.btn-finish.go{background:linear-gradient(150deg,#5F7D4C,#48613A);color:#F3F8EC;box-shadow:0 8px 20px rgba(80,110,60,.3);}
+.btn-finish.more{background:#FFFDF6;border:1.5px solid #DCCB9F;color:var(--ink-2);}
+.btn-finish:active{transform:scale(.97);}
+.finish-confirmed{margin:-4px 0 12px 46px;font-size:13px;color:var(--ok);letter-spacing:.5px;}
+
+/* 章节草稿提示 */
+.draft-pill{
+  position:absolute;top:calc(env(safe-area-inset-top,0px) + 12px);right:14px;z-index:5;
+  font-size:11.5px;color:#8A6D35;background:rgba(255,246,222,.92);border:1px solid #E3CD97;
+  border-radius:999px;padding:4px 11px;box-shadow:var(--shadow-1);letter-spacing:.5px;
+}
+
+/* ---------- 故事确认页 ---------- */
+.confirm-paper{
+  background:var(--paper-2);border:1.5px solid #E7DBBE;border-radius:20px;
+  padding:20px 18px;box-shadow:var(--shadow-1);margin-top:4px;
+}
+.confirm-paper h3{font-size:13px;color:var(--ink-3);letter-spacing:2px;margin-bottom:10px;}
+.quote-block{
+  border-left:3.5px solid var(--amber);background:rgba(200,150,60,.07);
+  border-radius:4px 12px 12px 4px;padding:10px 12px;margin-bottom:14px;
+}
+.quote-block p{font-size:16px;line-height:1.8;color:#5C4433;letter-spacing:.3px;font-style:normal;}
+.quote-block .q-src{font-size:11.5px;color:var(--ink-3);margin-top:6px;letter-spacing:1px;}
+.compiled-block p{font-size:16.5px;line-height:1.9;letter-spacing:.4px;color:var(--ink);margin-bottom:10px;text-indent:2em;}
+.compiled-block p.no-indent{text-indent:0;}
+.meta-chips{display:flex;flex-wrap:wrap;gap:8px;margin:6px 0 4px;}
+.meta-chips span{
+  font-size:12.5px;color:var(--amber-deep);background:rgba(200,150,60,.1);
+  border:1px solid rgba(176,126,34,.3);border-radius:999px;padding:4px 12px;letter-spacing:.5px;
+}
+.element-check{display:flex;flex-wrap:wrap;gap:7px;margin-top:12px;}
+.element-check span{font-size:12px;padding:4px 10px;border-radius:8px;letter-spacing:.5px;}
+.element-check .ok{color:var(--ok);background:rgba(91,122,74,.1);border:1px solid rgba(91,122,74,.3);}
+.element-check .miss{color:var(--ink-3);background:var(--paper-3);border:1px dashed #D8C7A0;}
+
+/* ---------- 人生故事页（显影手帖） ---------- */
+#viewStory .story-paper-wrap{flex:1;overflow-y:auto;padding:18px 18px 30px;perspective:1200px;-webkit-overflow-scrolling:touch;}
+#viewStory .story-paper-wrap::-webkit-scrollbar{width:0;}
+.story-paper{
+  background:
+    radial-gradient(420px 180px at 90% 0%, rgba(255,205,120,.14), transparent 65%),
+    linear-gradient(175deg,#FDF9F0,#F6EFDD);
+  border:1px solid #E7DBBE;border-radius:6px 22px 22px 6px;
+  box-shadow:var(--shadow-2);
+  padding:26px 22px 22px;position:relative;
+  animation:pageUnfold 1.1s cubic-bezier(.25,.8,.3,1) both;transform-origin:top center;
+}
+@keyframes pageUnfold{
+  0%{transform:rotateX(38deg) translateY(26px);opacity:0;filter:blur(3px);}
+  55%{filter:blur(1px);}
+  100%{transform:none;opacity:1;filter:blur(0);}
+}
+.sp-brand{font-size:11.5px;letter-spacing:4px;color:var(--amber-deep);display:flex;justify-content:space-between;align-items:center;}
+.sp-brand .seal{
+  font-size:11px;color:var(--cinnabar);border:1.5px solid rgba(179,67,43,.55);border-radius:6px;
+  padding:2px 7px;letter-spacing:2px;transform:rotate(3deg);font-weight:600;
+}
+.sp-title{font-size:24px;font-weight:700;letter-spacing:1px;line-height:1.4;margin:14px 0 4px;}
+.sp-meta{font-size:13px;color:var(--ink-3);letter-spacing:1px;margin-bottom:16px;}
+.sp-divider{height:1px;background:linear-gradient(90deg,transparent,#D8C7A0,transparent);margin:14px 0;}
+.sp-sec{margin-bottom:16px;}
+.sp-sec .sec-label{font-size:12px;color:var(--amber-deep);letter-spacing:3px;margin-bottom:8px;display:flex;align-items:center;gap:8px;}
+.sp-sec .sec-label::after{content:"";flex:1;height:1px;background:#EADFC4;}
+.reveal{opacity:0;filter:blur(5px);transform:translateY(6px);transition:opacity .9s ease,filter .9s ease,transform .9s ease;}
+.reveal.on{opacity:1;filter:blur(0);transform:none;}
+.sp-essay p{font-size:17px;line-height:1.95;letter-spacing:.5px;color:var(--ink);margin-bottom:11px;text-indent:2em;}
+.sp-quotes .q{
+  border-left:3.5px solid var(--amber);background:rgba(200,150,60,.07);
+  border-radius:4px 12px 12px 4px;padding:10px 13px;margin-bottom:9px;
+  font-size:16px;line-height:1.8;color:#5C4433;
+}
+.sp-quotes .q::before{content:"“";color:var(--amber);font-size:20px;margin-right:2px;}
+.sp-quotes .q::after{content:"”";color:var(--amber);font-size:20px;margin-left:2px;}
+/* 原声波形 */
+.sp-audio{
+  display:flex;align-items:center;gap:12px;background:#FBF4E2;border:1.5px solid #E7DBBE;
+  border-radius:16px;padding:12px 14px;
+}
+.sp-audio .play-btn{
+  width:46px;height:46px;border-radius:50%;flex-shrink:0;font-size:18px;color:#FFF7E4;
+  background:linear-gradient(150deg,#C08A2C,#96650F);box-shadow:0 4px 12px rgba(150,100,20,.3);
+}
+.sp-audio .play-btn:active{transform:scale(.93);}
+.sp-audio .wave{flex:1;display:flex;align-items:center;gap:2px;height:40px;overflow:hidden;}
+.sp-audio .wave i{flex:1;min-width:2px;max-width:5px;border-radius:2px;background:#C7A45C;opacity:.55;transition:.18s;}
+.sp-audio.playing .wave i{opacity:1;}
+.sp-audio .dur{font-size:12px;color:var(--ink-3);flex-shrink:0;font-family:ui-monospace,Menlo,monospace;}
+/* 家人回应 */
+.family-box{background:rgba(255,252,244,.8);border:1.5px dashed #DCCB9F;border-radius:16px;padding:13px 14px;}
+.family-box .fb-title{font-size:12.5px;color:var(--ink-3);letter-spacing:2px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;}
+.family-box .fb-tag{font-size:10.5px;color:#A08A5F;background:var(--paper-3);border-radius:999px;padding:2px 9px;letter-spacing:1px;}
+.family-row{display:flex;align-items:center;gap:9px;margin-bottom:9px;}
+.family-row .fa{
+  width:32px;height:32px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;
+  font-size:15px;color:#FFF7E4;background:linear-gradient(150deg,#8A744F,#6B5540);
+}
+.family-row .fmsg{font-size:14.5px;color:var(--ink-2);line-height:1.5;}
+.family-row .fheart{font-size:15px;color:var(--cinnabar);margin-left:auto;}
+.like-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.like-row .liked-avatars{display:flex;}
+.like-row .liked-avatars .fa{width:26px;height:26px;font-size:12px;margin-left:-7px;border:2px solid var(--paper-2);}
+.btn-heart{
+  margin-left:auto;font-size:14px;font-weight:700;color:var(--cinnabar);
+  border:1.5px solid rgba(179,67,43,.4);border-radius:999px;padding:6px 16px;letter-spacing:1px;
+}
+.btn-heart:active{transform:scale(.94);}
+.btn-heart.done{background:rgba(179,67,43,.08);}
+/* 修改指令条 */
+.revise-bar{
+  margin-top:14px;background:#FFFDF6;border:1.5px solid #E7DBBE;border-radius:16px;padding:12px 14px;
+}
+.revise-bar .rb-title{font-size:13px;color:var(--ink-2);font-weight:700;letter-spacing:1px;margin-bottom:6px;}
+.revise-bar .rb-ex{font-size:12px;color:var(--ink-3);line-height:1.6;margin-bottom:9px;}
+.revise-bar textarea{
+  width:100%;min-height:58px;border:1.5px solid #EADFC4;border-radius:12px;background:var(--paper-2);
+  padding:10px 12px;font-size:16px;line-height:1.6;outline:none;resize:none;
+}
+.revise-bar textarea:focus{border-color:var(--amber);}
+.revise-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:8px;}
+/* 分发按钮 */
+.share-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px;}
+.share-btn{
+  border-radius:16px;padding:13px 8px;font-size:15px;font-weight:700;letter-spacing:1px;
+  display:flex;flex-direction:column;align-items:center;gap:5px;line-height:1.3;
+}
+.share-btn small{font-size:11px;font-weight:500;color:var(--ink-3);letter-spacing:.3px;}
+.share-btn.save{background:linear-gradient(150deg,#5F7D4C,#48613A);color:#F3F8EC;}
+.share-btn.link{background:#FFFDF6;border:1.5px solid #DCCB9F;color:var(--ink-2);}
+.share-btn.wechat{background:#EAF4E4;border:1.5px solid #BDD9AC;color:#3E5B2E;}
+.share-btn.moments{background:#FBEFE2;border:1.5px solid #E7C9A4;color:#7A4E1B;}
+.share-btn:active{transform:scale(.96);}
+/* 授权归档 */
+.archive-zone{margin-top:16px;display:flex;flex-direction:column;gap:10px;}
+.btn-archive-main{
+  border-radius:18px;padding:15px;font-size:18px;font-weight:700;letter-spacing:2px;
+  background:linear-gradient(150deg,#8A5E14,#6E4A0F);color:#FFF4DC;
+  box-shadow:0 10px 24px rgba(120,80,15,.35);display:flex;align-items:center;justify-content:center;gap:9px;
+}
+.btn-archive-main:active{transform:scale(.97);}
+.btn-archive-sub{
+  border-radius:16px;padding:12px;font-size:15.5px;letter-spacing:1px;font-weight:600;
+  background:#FFFDF6;border:1.5px solid #DCCB9F;color:var(--ink-2);
+}
+.btn-archive-sub:active{transform:scale(.97);}
+.archived-flag{
+  margin-top:14px;text-align:center;font-size:14px;color:var(--ok);letter-spacing:2px;
+  background:rgba(91,122,74,.08);border:1.5px solid rgba(91,122,74,.3);border-radius:14px;padding:12px;
+}
+
+/* ---------- 人生长卷 ---------- */
+.scroll-title-block{text-align:center;margin:8px 0 4px;}
+.scroll-title-block h2{font-size:22px;letter-spacing:6px;color:var(--ink);}
+.scroll-title-block p{font-size:12.5px;color:var(--ink-3);letter-spacing:2px;margin-top:6px;}
+.scroll-canvas{position:relative;padding:12px 18px 40px;}
+.scroll-axis{
+  position:absolute;left:34px;top:0;bottom:0;width:2.5px;
+  background:linear-gradient(180deg,transparent,#D8C7A0 6%,#D8C7A0 94%,transparent);
+}
+.scroll-node{position:relative;padding:0 0 26px 66px;}
+.scroll-node .dot{
+  position:absolute;left:23.5px;top:8px;width:24px;height:24px;border-radius:50%;
+  background:radial-gradient(circle at 34% 30%,#F2DEAE,#C79A3E);
+  border:2.5px solid var(--paper);box-shadow:0 0 0 2px #D8C7A0,0 3px 8px rgba(120,90,40,.25);
+  display:flex;align-items:center;justify-content:center;font-size:12px;z-index:2;
+}
+.scroll-node .era{
+  font-size:13px;color:var(--amber-deep);letter-spacing:1.5px;font-weight:700;margin-bottom:6px;
+  display:flex;align-items:center;gap:8px;
+}
+.scroll-node .era .stage{font-size:11px;color:#FFF7E4;background:#8A744F;border-radius:999px;padding:2px 9px;letter-spacing:1px;font-weight:500;}
+.scroll-node .card{
+  background:var(--paper-2);border:1.5px solid #E7DBBE;border-radius:16px;padding:13px 15px;
+  box-shadow:var(--shadow-1);transition:transform .18s;
+}
+.scroll-node .card:active{transform:scale(.98);}
+.scroll-node .card h4{font-size:17px;letter-spacing:.5px;line-height:1.4;margin-bottom:5px;}
+.scroll-node .card p{font-size:13.5px;color:var(--ink-2);line-height:1.6;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+.scroll-node .card .mini-wave{display:flex;align-items:flex-end;gap:2px;height:14px;margin-top:8px;}
+.scroll-node .card .mini-wave i{width:3px;border-radius:2px;background:#C7A45C;opacity:.6;}
+.scroll-node .card .fam-mark{font-size:11.5px;color:var(--ink-3);margin-top:7px;letter-spacing:.5px;}
+.node-reveal{opacity:0;transform:translateY(22px);filter:blur(3px);transition:all .8s cubic-bezier(.2,.7,.3,1);}
+.node-reveal.on{opacity:1;transform:none;filter:blur(0);}
+.scroll-empty{
+  text-align:center;padding:56px 30px;color:var(--ink-3);
+}
+.scroll-empty .big-ico{font-size:52px;margin-bottom:16px;filter:grayscale(.25);}
+.scroll-empty h3{font-size:19px;color:var(--ink-2);letter-spacing:2px;margin-bottom:10px;}
+.scroll-empty p{font-size:14px;line-height:1.8;margin-bottom:22px;}
+.scroll-gap-hint{
+  margin:4px 0 22px 66px;font-size:12.5px;color:var(--amber-deep);
+  background:rgba(200,150,60,.08);border:1px dashed rgba(176,126,34,.35);border-radius:12px;padding:9px 12px;
+  letter-spacing:.5px;line-height:1.6;
+}
+
+/* ---------- 分享只读页 ---------- */
+.shared-banner{
+  margin:0 18px 12px;background:rgba(91,122,74,.08);border:1.5px solid rgba(91,122,74,.28);
+  border-radius:14px;padding:10px 14px;font-size:13px;color:#44582F;line-height:1.6;letter-spacing:.3px;
+}
+
+/* ---------- Toast / 弹层 / 抽屉 ---------- */
+#toast{
+  position:fixed;left:50%;bottom:120px;transform:translateX(-50%) translateY(20px);
+  background:rgba(46,33,20,.94);color:#F7EBD2;font-size:14.5px;letter-spacing:1px;
+  padding:12px 26px;border-radius:999px;z-index:999;opacity:0;pointer-events:none;
+  transition:.35s;box-shadow:0 10px 30px rgba(0,0,0,.35);max-width:82vw;text-align:center;line-height:1.5;
+}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+.modal-mask{
+  position:fixed;inset:0;background:rgba(30,20,10,.55);backdrop-filter:blur(3px);
+  z-index:90;display:flex;align-items:center;justify-content:center;padding:26px;animation:maskIn .25s ease;
+}
+@keyframes maskIn{from{opacity:0;}to{opacity:1;}}
+.modal{
+  width:100%;max-width:360px;background:var(--paper-2);border-radius:22px;padding:24px 20px;
+  box-shadow:var(--shadow-2);animation:bubIn .3s ease both;max-height:80vh;overflow-y:auto;
+}
+.modal h3{font-size:18px;letter-spacing:1px;margin-bottom:12px;color:var(--ink);}
+.modal p{font-size:14.5px;color:var(--ink-2);line-height:1.75;margin-bottom:10px;}
+.modal .modal-btns{display:flex;gap:10px;margin-top:16px;}
+.modal .modal-btns .mini-btn{flex:1;text-align:center;padding:12px 0;}
+/* 设置抽屉 */
+.drawer-mask{position:fixed;inset:0;background:rgba(30,20,10,.45);z-index:80;animation:maskIn .25s ease;}
+.drawer{
+  position:fixed;right:0;top:0;bottom:0;width:min(88vw,340px);z-index:81;
+  background:var(--paper-2);box-shadow:-14px 0 40px rgba(30,20,10,.3);
+  display:flex;flex-direction:column;animation:drawerIn .32s cubic-bezier(.2,.8,.3,1) both;
+}
+@keyframes drawerIn{from{transform:translateX(100%);}to{transform:none;}}
+.drawer-head{
+  padding:calc(env(safe-area-inset-top,0px) + 18px) 20px 12px;display:flex;justify-content:space-between;align-items:center;
+  border-bottom:1px solid var(--line);
+}
+.drawer-head h3{font-size:17px;letter-spacing:2px;}
+.drawer-body{flex:1;overflow-y:auto;padding:16px 20px 30px;}
+.drawer-body .sec{margin-bottom:22px;}
+.drawer-body .sec h4{font-size:13px;color:var(--amber-deep);letter-spacing:2px;margin-bottom:9px;}
+.drawer-body .sec p{font-size:13px;color:var(--ink-2);line-height:1.7;margin-bottom:8px;}
+.field{margin-bottom:11px;}
+.field label{display:block;font-size:12.5px;color:var(--ink-3);margin-bottom:5px;letter-spacing:1px;}
+.field input{
+  width:100%;border:1.5px solid #DCCB9F;border-radius:12px;background:#FFFDF6;
+  padding:11px 13px;font-size:14.5px;outline:none;
+}
+.field input:focus{border-color:var(--amber);}
+.boundary-table{width:100%;border-collapse:collapse;font-size:12.5px;}
+.boundary-table td{padding:8px 6px;border-bottom:1px dashed #E0D2B2;line-height:1.5;vertical-align:top;}
+.boundary-table td:first-child{color:var(--ink);font-weight:600;white-space:nowrap;}
+.tag-real{color:var(--ok);font-weight:700;}
+.tag-sim{color:#A1662C;font-weight:700;}
+/* 底部版权/边界入口 */
+.foot-note{
+  text-align:center;font-size:11.5px;color:#B7A381;padding:10px 16px calc(env(safe-area-inset-bottom,0px) + 12px);
+  letter-spacing:1px;
+}
+.foot-note b{color:var(--amber-deep);font-weight:600;}
+
+/* 生成中遮罩（磁带停止 → 显影） */
+.developing-mask{
+  position:fixed;inset:0;z-index:95;background:rgba(38,28,16,.9);backdrop-filter:blur(4px);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;color:#F2E4C8;gap:18px;
+}
+.developing-mask .dm-tape{font-size:44px;animation:devTape 1.8s ease-in-out infinite;}
+@keyframes devTape{0%,100%{transform:rotate(-8deg);opacity:.7;}50%{transform:rotate(8deg);opacity:1;}}
+.developing-mask .dm-text{font-size:15px;letter-spacing:4px;opacity:.85;}
+.developing-mask .dm-sub{font-size:12px;letter-spacing:2px;opacity:.5;}
+.dev-flash{position:fixed;inset:0;background:#FFF6E0;z-index:96;opacity:0;pointer-events:none;}
+.dev-flash.go{animation:devFlash 1.3s ease both;}
+@keyframes devFlash{0%{opacity:0;}18%{opacity:.95;}100%{opacity:0;}}
+</style>
+</head>
+<body>
+<div id="app">
+  <!-- ================= 首页 ================= -->
+<section class="view hidden" id="viewHome">
+  <div class="topbar">
+    <div class="tb-title">
+      <div id="homeGreet">晚上好</div>
+      <div class="tb-sub" id="homeSub">这里是光阴电台，想听听您的故事</div>
+    </div>
+    <button class="icon-btn" id="btnScrollEntry" title="人生长卷">🗺️</button>
+    <button class="icon-btn" id="btnSettings" title="设置">⚙️</button>
+  </div>
+  <div class="scroll-area" style="display:flex;flex-direction:column;">
+    <div class="hero-greet">
+      <h1 id="homeTitle">今晚，聊聊哪段岁月？</h1>
+      <p id="homeIntro">点一张卡片，就像点一盏旧台灯，慢慢说。</p>
+    </div>
+    <div class="deck" id="topicDeck">
+      <div class="card-slot" id="deckSlot"><!-- JS 渲染主题卡 --></div>
+    </div>
+    <div class="deck-pager" id="deckPager"></div>
+    <div class="deck-toolbar">
+      <button class="btn-refresh" id="btnRefreshTopics"><span class="ico">🔄</span> 换一批</button>
+    </div>
+    <div class="archive-strip" id="archiveStrip">
+      <span class="n" id="archCount">0</span>
+      <span class="t">个故事已归入您的人生长卷</span>
+      <button class="go" id="btnScrollGo">翻开看看 ›</button>
+    </div>
+    <div class="breath-zone">
+      <div class="breath-hint">不知道聊啥？就像打电话一样，随便唠唠</div>
+      <button class="btn-breath" id="btnFreeChat">开始讲<small>随便聊聊</small></button>
+    </div>
+    <div class="foot-note" id="homeFoot"></div>
+  </div>
+</section>
+
+<!-- ================= 电台对话室 ================= -->
+<section class="view hidden" id="viewChat">
+  <div class="draft-pill hidden" id="draftPill">✓ 已存草稿，可随时退出再续</div>
+  <div class="radio-stage">
+    <div class="radio standby" id="radioBox">
+      <div class="radio-top">
+        <span class="radio-brand">光阴电台 · SILVER FM</span>
+        <span class="radio-lamp"></span>
+      </div>
+      <div class="dial">
+        <div class="scale" id="dialScale"></div>
+        <div class="dial-pointer" id="dialPointer"></div>
+      </div>
+      <div class="tape-row">
+        <div class="tape">
+          <div class="reel"></div><div class="reel"></div>
+          <div class="tape-window"></div>
+        </div>
+        <div class="knob"></div>
+      </div>
+      <div class="radio-state">
+        <span id="radioStateText">等待开口 · 旋钮微亮</span>
+        <span class="freq" id="radioFreq">AM 1035 kHz</span>
+      </div>
+    </div>
+  </div>
+  <div class="chat-scroll" id="chatScroll">
+    <div id="chatList"><!-- JS 渲染气泡/字幕卡/结束按钮组 --></div>
+  </div>
+  <div class="chat-controls">
+    <div class="wav-strip" id="wavStrip"></div>
+    <button class="big-mic" id="btnMic">🎙️ 开始讲</button>
+    <div class="chat-input-row">
+      <input id="chatTextInput" type="text" placeholder="也可以在这里打字…" maxlength="600">
+      <button class="send-btn" id="btnSendText">➤</button>
+    </div>
+    <div class="end-hint-row">
+      <button class="link-btn" id="btnEndEarly">先讲到这里，去生成故事</button>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 故事确认页 ================= -->
+<section class="view hidden" id="viewConfirm">
+  <div class="topbar">
+    <button class="icon-btn" id="btnConfirmBack">‹</button>
+    <div class="tb-title">确认故事内容<div class="tb-sub">看看整理得对不对，不对可以改</div></div>
+  </div>
+  <div class="scroll-area">
+    <div class="confirm-paper" id="confirmPaper"><!-- JS 渲染 --></div>
+    <div class="archive-zone" style="margin-top:16px;">
+      <button class="btn-archive-main" id="btnConfirmOk">✔ 没错，就讲这些 → 生成人生故事页</button>
+      <button class="btn-archive-sub" id="btnConfirmBack2">↩ 回去再补充两句</button>
+    </div>
+    <div class="foot-note" id="confirmFoot"></div>
+  </div>
+</section>
+
+<!-- ================= 人生故事页 ================= -->
+<section class="view hidden" id="viewStory">
+  <div class="topbar">
+    <button class="icon-btn" id="btnStoryBack">‹</button>
+    <div class="tb-title" id="storyHeaderTitle">人生故事页</div>
+    <button class="icon-btn" id="btnStoryShare" title="分享">📤</button>
+  </div>
+  <div class="story-paper-wrap" id="storyWrap">
+    <div id="storySharedBanner" class="shared-banner hidden"></div>
+    <div class="story-paper" id="storyPaper"><!-- JS 渲染 --></div>
+    <div id="storyBelowPaper"><!-- 修改条 / 分享 / 归档区 --></div>
+  </div>
+</section>
+
+<!-- ================= 人生长卷 ================= -->
+<section class="view hidden" id="viewScroll">
+  <div class="topbar">
+    <button class="icon-btn" id="btnScrollBack">‹</button>
+    <div class="tb-title">人生长卷<div class="tb-sub">上下慢慢滑动，岁月徐徐展开</div></div>
+  </div>
+  <div class="scroll-area" style="padding-top:6px;">
+    <div class="scroll-title-block">
+      <h2>岁 月 留 声</h2>
+      <p id="scrollYears">— · —</p>
+    </div>
+    <div class="scroll-canvas" id="scrollCanvas">
+      <div class="scroll-axis"></div>
+      <div id="scrollNodes"><!-- JS 渲染节点 --></div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 设置抽屉 / 弹层 ================= -->
+<div class="drawer-mask hidden" id="drawerMask"></div>
+<aside class="drawer hidden" id="drawer">
+  <div class="drawer-head">
+    <h3>⚙️ 设置 · 能力说明</h3>
+    <button class="icon-btn" id="btnDrawerClose" style="width:36px;height:36px;">✕</button>
+  </div>
+  <div class="drawer-body">
+    <div class="sec">
+      <h4>📡 AI 大脑接入（可选）</h4>
+      <p>默认使用<b>本地演示大脑</b>对话。填入任意 OpenAI 兼容接口后，对话与故事生成将切换为<b>真实流式大模型</b>（边生成边朗读）。</p>
+      <div class="field"><label>接口地址（Base URL）</label><input id="cfgBaseUrl" placeholder="https://api.openai.com/v1"></div>
+      <div class="field"><label>API Key</label><input id="cfgApiKey" type="password" placeholder="sk-…"></div>
+      <div class="field"><label>模型名</label><input id="cfgModel" placeholder="gpt-4o-mini"></div>
+      <button class="mini-btn primary" id="btnSaveCfg" style="width:100%;">保存并启用</button>
+      <p id="cfgStatus" style="margin-top:8px;"></p>
+    </div>
+    <div class="sec">
+      <h4>🔎 真实能力与场景模拟边界</h4>
+      <table class="boundary-table">
+        <tr><td>语音识别 ASR</td><td><span class="tag-real">真实实现</span> · 浏览器 Web Speech API，转写后可修正</td></tr>
+        <tr><td>流式 LLM 对话</td><td id="bdLlm"><span class="tag-real">真实实现</span> · 已接入流式大模型</td></tr>
+        <tr><td>语音合成 TTS</td><td><span class="tag-real">真实实现</span> · 浏览器 SpeechSynthesis 电台播报</td></tr>
+        <tr><td>结构化故事生成</td><td><span class="tag-real">真实实现</span> · 原话层 / 整理层两层加工，绝不虚构</td></tr>
+        <tr><td>时间提取</td><td><span class="tag-real">真实实现</span> · 年代推算 + 人生长卷时序归位</td></tr>
+        <tr><td>家人回应</td><td><span class="tag-sim">场景模拟</span> · 头像 / 点赞 / 一句话为预设演示数据</td></tr>
+      </table>
+    </div>
+    <div class="sec">
+      <h4>🗄️ 本地数据</h4>
+      <p>全部讲述、草稿与故事仅保存在这台设备的浏览器里（LocalStorage / IndexedDB），免注册、不上传。</p>
+      <button class="mini-btn" id="btnClearAll" style="width:100%;color:#B3432B;">清空本地全部数据</button>
+    </div>
+  </div>
+</aside>
+
+<div class="developing-mask hidden" id="developingMask">
+  <div class="dm-tape">📼</div>
+  <div class="dm-text" id="devText">磁带停了 · 照片正在显影…</div>
+  <div class="dm-sub">SILVER FM · 光阴手帖</div>
+</div>
+<div class="dev-flash" id="devFlash"></div>
+</div>
+<div id="toast"></div>
+<script>
+/* ============================================================
+ * 光阴手帖 v1.4 · JS Part 1 —— 工具 / 数据层 / 三层推荐引擎
+ * ============================================================ */
+'use strict';
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const LS = {
+  get(k, d){ try{ const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); }catch(e){ return d; } },
+  set(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} },
+  del(k){ try{ localStorage.removeItem(k); }catch(e){} }
+};
+let toastTimer = null;
+function toast(msg, ms){
+  const t = $('toast'); t.textContent = msg; t.classList.add('show');
+  clearTimeout(toastTimer); toastTimer = setTimeout(()=>t.classList.remove('show'), ms || 2400);
+}
+
+/* ---------- 存储键位（对齐技术方案 §7） ---------- */
+const K = {
+  draft:  'silver_memoir_draft',    // 逐轮对话草稿
+  stories:'silver_memoir_stories',  // 长辈确认归档的故事
+  persona:'silver_memoir_persona',  // 对话自然沉淀的画像
+  family: 'silver_memoir_family',   // 家人回应（场景模拟）
+  cfg:    'silver_memoir_settings'  // LLM 接入配置
+};
+
+/* ---------- IndexedDB：原声音频 Blob 持久化 ---------- */
+const AudioStore = (() => {
+  let dbp = null;
+  function open(){
+    if (dbp) return dbp;
+    dbp = new Promise((res, rej) => {
+      const rq = indexedDB.open('silver_memoir_audio', 1);
+      rq.onupgradeneeded = () => rq.result.createObjectStore('clips');
+      rq.onsuccess = () => res(rq.result);
+      rq.onerror = () => rej(rq.error);
+    });
+    return dbp;
+  }
+  return {
+    async put(id, blob){
+      try{ const db = await open(); return new Promise((res,rej)=>{
+        const tx = db.transaction('clips','readwrite');
+        tx.objectStore('clips').put(blob, id); tx.oncomplete = res; tx.onerror = rej;
+      }); }catch(e){}
+    },
+    async get(id){
+      try{ const db = await open(); return new Promise((res,rej)=>{
+        const rq = db.transaction('clips','readonly').objectStore('clips').get(id);
+        rq.onsuccess = () => res(rq.result || null); rq.onerror = rej;
+      }); }catch(e){ return null; }
+    },
+    async del(id){
+      try{ const db = await open(); return new Promise((res)=>{
+        const tx = db.transaction('clips','readwrite');
+        tx.objectStore('clips').delete(id); tx.oncomplete = res;
+      }); }catch(e){}
+    }
+  };
+})();
+
+/* ---------- 画像（对话自然沉淀，不预填不问卷） ---------- */
+function getPersona(){ return LS.get(K.persona, { relations:[], places:[], eras:[], stages:[], interests:[], topics:[], avoid:[] }); }
+function savePersona(p){ LS.set(K.persona, p); }
+function getStories(){ return LS.get(K.stories, []); }
+function saveStories(arr){ LS.set(K.stories, arr); }
+function getFamilyEcho(){ return LS.get(K.family, {}); }
+function saveFamilyEcho(o){ LS.set(K.family, o); }
+
+/* ---------- LLM 配置 ---------- */
+function getCfg(){ return LS.get(K.cfg, { baseUrl:'', apiKey:'', model:'' }); }
+function llmReady(){ const c = getCfg(); return !!(c.baseUrl && c.apiKey && c.model); }
+
+/* ============================================================
+ * 三层推荐引擎（记忆唤醒系统）
+ * 第一层：普适开口池；第二层：画像加权；第三层：人生故事缺口
+ * ============================================================ */
+const UNIVERSAL_TOPICS = [
+  { icon:'💰', title:'第一次拿到工资', desc:'第一个月的工资是多少？都花在哪儿了？', tags:['工作','钱'], era:'' },
+  { icon:'🎵', title:'年轻时最喜欢的一首歌', desc:'那时候谁唱的？在哪儿听到的？', tags:['歌','青春'], era:'' },
+  { icon:'🚂', title:'第一次离开家乡', desc:'去的哪儿？走的哪条路？心里啥滋味？', tags:['远行','家乡'], era:'' },
+  { icon:'🍲', title:'家里最有味道的一道菜', desc:'谁做的？啥味道？现在还想得起不？', tags:['家','味道'], era:'' },
+  { icon:'🧨', title:'小时候过年的样子', desc:'那时候年货都有啥？最盼着哪一口？', tags:['过年','童年'], era:'' },
+  { icon:'📖', title:'上学时印象最深的老师', desc:'哪位老师？他说过啥您到现在还记得？', tags:['学校','师恩'], era:'' },
+  { icon:'🏘️', title:'老邻居的故事', desc:'当年住对门、住隔壁的是啥样人？', tags:['邻里','情分'], era:'' },
+  { icon:'💍', title:'婚礼那天的样子', desc:'那天穿啥？谁来贺喜？热闹不？', tags:['家庭','喜事'], era:'' },
+  { icon:'📺', title:'家里第一台电器', desc:'啥牌子？多少钱买的？谁最稀罕它？', tags:['家当','年代'], era:'' },
+  { icon:'👶', title:'孩子出生那天', desc:'那天啥天气？您头一眼看见娃是啥心情？', tags:['儿女','生命'], era:'' },
+  { icon:'❄️', title:'最难忘的一场大雪', desc:'哪一年？雪下得多大？那天发生了啥？', tags:['天气','难忘'], era:'' },
+  { icon:'🤝', title:'年轻时最要好的朋友', desc:'咋认识的？后来还有来往不？', tags:['友情','朋友'], era:'' },
+  { icon:'🏭', title:'第一份工作是怎么找着的', desc:'谁介绍的？面试那天紧张不？', tags:['工作','开端'], era:'' },
+  { icon:'🌅', title:'退休前最后一天上班', desc:'那天跟工友们都说了啥？啥心情？', tags:['工作','告别'], era:'' }
+];
+const SEASON_TOPICS = {
+  spring:[{ icon:'🌱', title:'开春时候的记忆', desc:'那时候开春都忙活啥？地里、院里有啥活儿？', tags:['季节','农事'] }],
+  summer:[{ icon:'🌊', title:'夏天纳凉的日子', desc:'那时候没空调，晚上都在哪儿乘凉？', tags:['季节','夏夜'] }],
+  autumn:[{ icon:'🍂', title:'秋收或者开学的日子', desc:'一到秋天，您想到的是啥？', tags:['季节','秋收'] }],
+  winter:[{ icon:'🔥', title:'冬天屋子里的暖乎劲儿', desc:'那时候冬天靠啥取暖？屋里啥味道？', tags:['季节','暖'] }]
+};
+const FRIEND_TOPICS = [
+  { icon:'🚲', title:'和老伙计们一起干过的事', desc:'那帮老哥们儿、老姐妹们，最疯的一次是啥时候？', tags:['友情'] },
+  { icon:'🍵', title:'老茶馆、老馆子的老味道', desc:'常去的那家店在哪儿？点的都是啥？', tags:['老店','味道'] }
+];
+function seasonNow(){ const m = new Date().getMonth(); return m<3?'spring':m<6?'summer':m<9?'autumn':'winter'; }
+
+/* 画像加权（第二层） */
+function personaTopics(p){
+  const list = [];
+  (p.places||[]).slice(-3).forEach(pl => list.push({
+    icon:'📍', title:`在${pl}的那些年`, desc:`您之前提到过${pl}，在那儿最有味道的日子是啥样？`, tags:['地点'], from:`因为您聊到过${pl}`
+  }));
+  (p.relations||[]).slice(-3).forEach(r => list.push({
+    icon:'👥', title:`和${r}最难忘的一件事`, desc:`您提过${r}，有啥事儿现在想起来还想笑（或想哭）？`, tags:['亲人'], from:`因为您上次提到了${r}`
+  }));
+  (p.stages||[]).slice(-2).forEach(s => list.push({
+    icon:'⏳', title:`${s}那阵子的日子`, desc:`那阵子您都在忙活啥？日子过得咋样？`, tags:['人生阶段'], from:`因为您聊起过${s}的时光`
+  }));
+  (p.interests||[]).slice(-3).forEach(it => list.push({
+    icon:'🎣', title:`您和${it}的交情`, desc:`听您聊起${it}，是啥时候迷上这个的？`, tags:['兴趣'], from:`因为您提到了${it}`
+  }));
+  return list;
+}
+
+/* 故事缺口（第三层） */
+function gapTopics(){
+  const stories = getStories(); const list = [];
+  if (stories.length >= 2){
+    const years = stories.map(s => (s.time_span && s.time_span.year_approx) || null).filter(y => y && y > 1900).sort((a,b)=>a-b);
+    if (years.length >= 2){
+      for (let i = 0; i < years.length - 1; i++){
+        const gap = years[i+1] - years[i];
+        if (gap >= 12){
+          const mid = Math.round((years[i] + years[i+1]) / 2);
+          list.push({ icon:'🕳️', title:`${mid}年前后那十年`, desc:`您的人生长卷里，${years[i]}到${years[i+1]}年之间还空着，那阵子您在忙啥？`, tags:['缺口'], from:'因为人生长卷里这段岁月还没有故事' });
+          break;
+        }
+      }
+    }
+    const tagCount = {};
+    stories.forEach(s => (s.tags||[]).forEach(t => tagCount[t] = (tagCount[t]||0)+1));
+    if (!tagCount['友情'] && stories.length >= 2) list.push({ ...FRIEND_TOPICS[0], from:'因为您讲过工作和家事，还很少聊老朋友' });
+  }
+  return list;
+}
+
+/* 抽一批：3 个主题（普适 ≥1），黑名单过滤，附推荐原因 */
+function pickTopics(){
+  const p = getPersona();
+  const avoid = new Set((p.avoid||[]).map(x => x && x.title).filter(Boolean));
+  const poolU = UNIVERSAL_TOPICS.filter(t => !avoid.has(t.title));
+  const poolS = (SEASON_TOPICS[seasonNow()]||[]).filter(t => !avoid.has(t.title));
+  const poolP = personaTopics(p).filter(t => !avoid.has(t.title));
+  const poolG = gapTopics().filter(t => !avoid.has(t.title));
+  const picked = [];
+  const take = (pool, from) => { if (pool.length){ const i = Math.floor(Math.random()*pool.length); picked.push({ ...pool.splice(i,1)[0], reason: from || (pool === poolU ? '每位老朋友都能聊上几句' : '推荐给您的话题') }); } };
+  // 结构：画像优先一个 > 缺口一个 > 季节一个 > 普适补足
+  if (poolP.length) take(poolP);
+  if (poolG.length) take(poolG);
+  if (picked.length < 3 && poolS.length) take(poolS);
+  while (picked.length < 3 && poolU.length) take(poolU, '很好开口的话题');
+  while (picked.length < 3 && UNIVERSAL_TOPICS.length) picked.push(UNIVERSAL_TOPICS[Math.floor(Math.random()*UNIVERSAL_TOPICS.length)]);
+  return picked.slice(0, 3);
+}
+
+/* 卡片渲染与“换一批” */
+let currentTopics = [];
+function renderTopics(swap){
+  const slot = $('deckSlot');
+  currentTopics = pickTopics();
+  const main = currentTopics[0], next = currentTopics[1];
+  slot.innerHTML = `
+    <div class="topic-card next" aria-hidden="true">
+      <span class="tc-reason">${esc(next.reason||'')}</span>
+      <div class="tc-title" style="font-size:18px;margin-top:12px;">${esc(next.title)}</div>
+    </div>
+    <div class="topic-card ${swap?'swap-in':''}" id="mainTopicCard">
+      <div class="tc-glow"></div>
+      <span class="tc-reason">💡 ${esc(main.reason||'')}</span>
+      <div class="tc-title">${esc(main.title)}</div>
+      <div class="tc-desc">${esc(main.desc)}</div>
+      <div class="tc-actions">
+        <button class="tc-skip" id="btnSkipTopic">不想聊这个 ›</button>
+        <button class="tc-talk" id="btnTalkTopic">就聊这个</button>
+      </div>
+    </div>`;
+  $('btnTalkTopic').onclick = () => startSession(main);
+  $('btnSkipTopic').onclick = () => {
+    const p = getPersona();
+    p.avoid = (p.avoid||[]).concat([{ title: main.title, at: Date.now() }]);
+    if (p.avoid.length > 40) p.avoid = p.avoid.slice(-40);
+    savePersona(p);
+    toast('好嘞，这个话题先收起来，换一个');
+    renderTopics(true);
+  };
+  $('deckPager').innerHTML = currentTopics.map((_,i)=>`<i class="${i===0?'on':''}"></i>`).join('');
+}
+function bindDeckPager(){
+  $('deckPager').addEventListener('click', (e) => {
+    if (e.target.tagName !== 'I') return;
+    const idx = [...$('deckPager').children].indexOf(e.target);
+    if (idx > 0 && currentTopics[idx]){
+      const t = currentTopics[idx];
+      currentTopics.splice(idx,1); currentTopics.unshift(t);
+      renderTopics(true);
+    }
+  });
+}
+</script>
+<script>
+/* ============================================================
+ * 光阴手帖 v1.4 · JS Part 2 —— 电台对话室
+ * 轮次式语音状态机 / ASR 可修正转写 / TTS / 流式 LLM / 演示大脑
+ * ============================================================ */
+
+/* ---------- 电台五态视觉 ---------- */
+const RadioState = {
+  set(mode, text){
+    const box = $('radioBox');
+    box.className = 'radio ' + mode;
+    $('radioStateText').textContent = text;
+    const p = $('dialPointer');
+    const base = { standby:30, idle:30, recording:22, transcribing:40, thinking:52, speaking:64, done:78 }[mode] || 30;
+    p.style.left = base + Math.random()*4 + '%';
+    $('radioFreq').textContent = mode==='standby' ? 'AM 1035 kHz' : (mode==='done' ? 'FM 98.5 MHz' : 'AM ' + (980 + Math.floor(base*4)) + ' kHz');
+  }
+};
+
+/* ---------- 会话草稿 ---------- */
+let session = null;
+function saveDraft(){ if (session){ session.updated = Date.now(); LS.set(K.draft, session); $('draftPill').classList.remove('hidden'); } }
+function loadDraft(){ return LS.get(K.draft, null); }
+function clearDraft(){ session = null; LS.del(K.draft); $('draftPill').classList.add('hidden'); }
+
+function startSession(topic){
+  const old = loadDraft();
+  if (old && old.rounds && old.rounds.length && !old.finished){
+    session = old;
+    showView('chat');
+    renderSessionFromDraft();
+    toast('接着上次的话题，咱们继续唠');
+    return;
+  }
+  session = {
+    topic: topic ? { title: topic.title, desc: topic.desc, reason: topic.reason, tags: topic.tags || [] } : null,
+    rounds: [], elements: {}, suggestedOnce: false, continued: false,
+    chapter: 1, startedAt: Date.now()
+  };
+  showView('chat');
+  RadioState.set('standby', '等待开口 · 旋钮微亮');
+  aiSpeak(buildOpening(session.topic));
+}
+
+function buildOpening(topic){
+  if (topic) return `晚上好，这里是光阴电台。今晚咱们聊${topic.title}。${topic.desc}您慢慢说，不着急，我听着呢。`;
+  return '晚上好，这里是光阴电台。今天没有标准答案，我只是想听听您的故事。随便从哪儿说起都行。';
+}
+
+function renderSessionFromDraft(){
+  const list = $('chatList'); list.innerHTML = '';
+  addBubble('ai', buildOpening(session.topic), { silent: true });
+  session.rounds.forEach(r => {
+    if (r.role === 'user') addBubble('user', r.text);
+    else addBubble('ai', r.text, { silent: true });
+  });
+  RadioState.set('standby', '等待开口 · 接着上回的讲');
+  scrollChat(true);
+}
+
+/* ---------- 气泡渲染 ---------- */
+function addBubble(role, text, opt){
+  opt = opt || {};
+  const list = $('chatList');
+  const div = document.createElement('div');
+  div.className = 'bubble ' + role;
+  if (role === 'ai'){
+    div.innerHTML = `<div class="avatar">📻</div><div class="b-text"><span class="bt-content"></span></div>`;
+  } else {
+    div.innerHTML = `<div class="b-text"></div>`;
+  }
+  const target = div.querySelector(role === 'ai' ? '.bt-content' : '.b-text');
+  target.textContent = text;
+  list.appendChild(div);
+  scrollChat();
+  return target;
+}
+function scrollChat(force){
+  const sc = $('chatScroll');
+  requestAnimationFrame(() => { sc.scrollTop = sc.scrollHeight; });
+}
+
+/* ---------- TTS：主持人播报（可跳过） ---------- */
+let speakingAbort = null;
+function speakText(text, onEnd){
+  return new Promise((resolve) => {
+    let done = false;
+    const finish = () => { if (!done){ done = true; speakingAbort = null; clearTimeout(guard); resolve(); if (onEnd) onEnd(); } };
+    // 兜底：部分浏览器/无语音环境下 onend 不触发，按语速上限强制收尾
+    const guard = setTimeout(finish, 2500 + text.length * 260);
+    try{
+      if (!('speechSynthesis' in window) || !text){ clearTimeout(guard); finish(); return; }
+      speechSynthesis.cancel();
+      const u = new SpeechSynthesisUtterance(text);
+      u.lang = 'zh-CN'; u.rate = 0.92; u.pitch = 1;
+      const voices = speechSynthesis.getVoices();
+      const zh = voices.find(v => /zh[-_]CN/i.test(v.lang)) || voices.find(v => /zh/i.test(v.lang));
+      if (zh) u.voice = zh;
+      u.onend = finish; u.onerror = finish;
+      speakingAbort = () => { try{ speechSynthesis.cancel(); }catch(e){} finish(); };
+      speechSynthesis.speak(u);
+    }catch(e){ finish(); }
+  });
+}
+function skipSpeak(){ if (speakingAbort) speakingAbort(); try{ speechSynthesis.cancel(); }catch(e){} }
+
+/* AI 回应：流式上屏 + 同步朗读（跳过=只停语音不停文字） */
+async function aiSpeak(text, opt){
+  opt = opt || {};
+  RadioState.set('thinking', '主持人思考中 · 稍等一哈');
+  await waitMs(500 + Math.min(text.length * 18, 1600));
+  if (opt.silent){
+    RadioState.set('standby', '等待开口 · 旋钮微亮');
+    return;
+  }
+  const target = addBubble('ai', '');
+  RadioState.set('speaking', '主持人回应 · 您可以点“跳过”');
+  const skipBtn = showSkipBtn();
+  // 逐字上屏（真实流式则由 onDelta 驱动）
+  if (opt.stream){
+    let cur = '';
+    let finished = false;
+    const finish = () => { if (!finished){ finished = true; skipBtn.remove(); RadioState.set('standby', '等待开口 · 旋钮微亮'); } };
+    opt.stream(async (delta) => {
+      cur += delta; target.textContent = cur; scrollChat();
+      skipBtn.onclick = () => { skipSpeak(); };
+    });
+    await speakText(text); // TTS 朗读整段（与文字并行）
+    finish();
+  } else {
+    for (let i = 0; i <= text.length; i += 1){
+      if (i % 2 === 0 || i === text.length){ target.textContent = text.slice(0, i) + (i < text.length ? ' ' : ''); scrollChat(); await waitMs(34); }
+    }
+    target.textContent = text;
+    const spoken = speakText(text);
+    skipBtn.onclick = () => { skipSpeak(); };
+    await spoken;
+    skipBtn.remove();
+    RadioState.set('standby', '等待开口 · 旋钮微亮');
+  }
+}
+function showSkipBtn(){
+  const b = document.createElement('button');
+  b.className = 'link-btn'; b.textContent = '⏭ 跳过播报';
+  b.style.cssText = 'position:absolute;top:calc(env(safe-area-inset-top,0px) + 10px);left:14px;z-index:6;';
+  $('viewChat').appendChild(b);
+  b.onclick = () => skipSpeak();
+  return b;
+}
+const waitMs = (ms) => new Promise(r => setTimeout(r, ms));
+
+/* ---------- 录音 + ASR（双通道，失败保留录音） ---------- */
+const ASR = (() => {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  let rec = null, active = false;
+  return {
+    supported: !!SR,
+    start(onPartial, onFinal, onErr){
+      if (!SR){ onErr && onErr('unsupported'); return null; }
+      try{
+        rec = new SR();
+        rec.lang = 'zh-CN'; rec.interimResults = true; rec.continuous = true; rec.maxAlternatives = 1;
+        rec.onresult = (e) => {
+          let interim = '', final = '';
+          for (let i = e.resultIndex; i < e.results.length; i++){
+            const r = e.results[i];
+            if (r.isFinal) final += r[0].transcript; else interim += r[0].transcript;
+          }
+          if (final) onFinal && onFinal(final);
+          if (interim) onPartial && onPartial(interim);
+        };
+        rec.onerror = (e) => { if (e.error !== 'aborted') onErr && onErr(e.error); };
+        rec.onend = () => { active = false; };
+        rec.start(); active = true;
+        return rec;
+      }catch(e){ onErr && onErr('start-failed'); return null; }
+    },
+    stop(){ try{ if (rec) rec.stop(); }catch(e){} active = false; }
+  };
+})();
+
+let mediaStream = null, mediaRecorder = null, audioChunks = [], recording = false, transcriptBuf = '';
+let clipSeq = 0; const pendingClips = {}; // id -> {blob,url,peaks}
+
+function renderWavStrip(){ $('wavStrip').innerHTML = '<i></i>'.repeat(28); }
+function wavAnimate(level){ // 0..1
+  [...$('wavStrip').children].forEach((bar, i) => {
+    const w = Math.sin(Date.now()/120 + i*0.7) * 0.5 + 0.5;
+    bar.style.height = (4 + w * (10 + level * 22)) + 'px';
+  });
+}
+let wavTimer = null;
+function startWavLive(analyser){
+  stopWavLive();
+  const buf = new Uint8Array(analyser.frequencyBinCount);
+  const loop = () => {
+    analyser.getByteTimeDomainData(buf);
+    let peak = 0; for (let i = 0; i < buf.length; i++) peak = Math.max(peak, Math.abs(buf[i] - 128) / 128);
+    wavAnimate(Math.min(peak * 1.8, 1));
+    wavTimer = requestAnimationFrame(loop);
+  };
+  loop();
+}
+function stopWavLive(){ if (wavTimer) cancelAnimationFrame(wavTimer); wavTimer = null; renderWavStrip(); }
+
+/* 计算音频峰值（用于静态波形） */
+async function computePeaks(blob, n){
+  n = n || 36;
+  try{
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const arr = await blob.arrayBuffer();
+    const audio = await ctx.decodeAudioData(arr);
+    const ch = audio.getChannelData(0); const step = Math.floor(ch.length / n) || 1;
+    const peaks = [];
+    for (let i = 0; i < n; i++){
+      let m = 0;
+      for (let j = 0; j < step; j += Math.max(1, Math.floor(step/50))){ m = Math.max(m, Math.abs(ch[i*step+j] || 0)); }
+      peaks.push(m);
+    }
+    ctx.close();
+    const mx = Math.max(...peaks, 0.01);
+    return peaks.map(p => +(p / mx).toFixed(2));
+  }catch(e){ return Array.from({length:n}, () => +(0.25 + Math.random()*0.6).toFixed(2)); }
+}
+
+async function startRecordingTurn(){
+  if (recording) return;
+  recording = true; transcriptBuf = '';
+  const btn = $('btnMic');
+  btn.className = 'big-mic rec'; btn.textContent = '⏹ 讲完了，点这里';
+  RadioState.set('recording', '正在讲 · 我们都听着呢');
+  // 字幕区
+  const card = makeTranscriptCard('live');
+  // MediaRecorder：本地录音保底
+  try{
+    mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    audioChunks = [];
+    mediaRecorder = new MediaRecorder(mediaStream);
+    mediaRecorder.ondataavailable = (e) => { if (e.data && e.data.size) audioChunks.push(e.data); };
+    mediaRecorder.start(400);
+    // 实时波形
+    try{
+      const actx = new (window.AudioContext || window.webkitAudioContext)();
+      const src = actx.createMediaStreamSource(mediaStream);
+      const analyser = actx.createAnalyser(); analyser.fftSize = 256;
+      src.connect(analyser);
+      startWavLive(analyser);
+      card._actx = actx;
+    }catch(e){}
+  }catch(e){
+    toast('麦克风没打开，可以点下方打字输入');
+  }
+  // ASR 实时字幕
+  ASR.start(
+    (partial) => { updateTranscriptCard(card, transcriptBuf + partial); },
+    (finalT) => { transcriptBuf += finalT; updateTranscriptCard(card, transcriptBuf); },
+    (err) => {
+      if (err === 'unsupported') toast('此浏览器不支持语音识别，建议用 Chrome；也可以打字');
+      else if (err === 'not-allowed' || err === 'service-not-allowed') toast('麦克风权限被拒绝，可以在浏览器设置里打开');
+      else if (recording) toast('网络识别不稳，别急，录音还在存着');
+    }
+  );
+}
+
+async function stopRecordingTurn(){
+  if (!recording) return;
+  recording = false;
+  ASR.stop(); stopWavLive();
+  const btn = $('btnMic');
+  btn.className = 'big-mic process'; btn.textContent = '📻 正在整理您的话…'; btn.disabled = true;
+  RadioState.set('transcribing', '转写中 · 字幕正在落定');
+  // 结束录音
+  let clipId = null;
+  const finishRec = () => new Promise((res) => {
+    if (mediaRecorder && mediaRecorder.state !== 'inactive'){
+      mediaRecorder.onstop = async () => {
+        try{
+          const blob = new Blob(audioChunks, { type: mediaRecorder.mimeType || 'audio/webm' });
+          clipId = 'clip_' + Date.now() + '_' + (clipSeq++);
+          const url = URL.createObjectURL(blob);
+          const peaks = await computePeaks(blob);
+          pendingClips[clipId] = { blob, url, peaks, dur: 0 };
+          try{ const au = new Audio(url); await new Promise(r => { au.onloadedmetadata = r; setTimeout(r, 800); }); pendingClips[clipId].dur = isFinite(au.duration) ? au.duration : 0; }catch(e){}
+          await AudioStore.put(clipId, blob);
+        }catch(e){}
+        try{ mediaStream.getTracks().forEach(t => t.stop()); }catch(e){}
+        res();
+      };
+      mediaRecorder.stop();
+    } else { try{ mediaStream && mediaStream.getTracks().forEach(t => t.stop()); }catch(e){} res(); }
+  });
+  await finishRec();
+  await waitMs(400);
+  btn.disabled = false; btn.className = 'big-mic'; btn.textContent = '🎙️ 开始讲';
+  RadioState.set('standby', '等待开口 · 旋钮微亮');
+  // 落定转写卡
+  const card = makeTranscriptCard('confirm', transcriptBuf, clipId);
+  if (!transcriptBuf.trim()){
+    updateTranscriptCard(card, clipId ? '（这次没听清，录音帮您存好了——可以点下面"再试一次"重讲，或直接在这里打字）' : '（这次没识别到声音，可以直接在这里打字）');
+  }
+}
+
+/* ---------- 可修正转写卡 ---------- */
+function makeTranscriptCard(mode, text, clipId){
+  const list = $('chatList');
+  const div = document.createElement('div');
+  div.className = 'transcript-card';
+  const label = mode === 'live' ? '🎧 您正在讲（实时字幕）' : '📝 刚才这段话，看看对不对（可以改）';
+  div.innerHTML = `
+    <div class="tc-label"><span>${label}</span>${clipId ? '<span>🔊 原声已保存</span>' : ''}</div>
+    <textarea placeholder="说错了没关系，在这里改一改…"></textarea>
+    <div class="transcript-actions">
+      ${clipId ? '<button class="mini-btn rp">↻ 再试一次</button>' : ''}
+      <button class="mini-btn primary ok">对，就这些</button>
+    </div>`;
+  const ta = div.querySelector('textarea');
+  ta.value = text || '';
+  ta.readOnly = mode === 'live';
+  if (mode === 'live') ta.placeholder = '您说话，字幕会自动出来…';
+  if (clipId && pendingClips[clipId]){
+    const play = document.createElement('button');
+    play.className = 'mini-btn'; play.textContent = '▶ 听听原声';
+    play.style.marginRight = 'auto';
+    play.onclick = () => { const a = new Audio(pendingClips[clipId].url); a.play(); };
+    div.querySelector('.transcript-actions').prepend(play);
+  }
+  div.querySelector('.ok').onclick = () => {
+    const finalText = ta.value.trim();
+    if (!finalText || finalText.startsWith('（')){ toast('内容还空着呢，先说一段或打几个字吧'); return; }
+    div.remove();
+    submitUserTurn(finalText, clipId);
+  };
+  const rp = div.querySelector('.rp');
+  if (rp) rp.onclick = () => { div.remove(); startRecordingTurn(); };
+  list.appendChild(div); scrollChat();
+  if (mode !== 'live') ta.focus();
+  return div;
+}
+function updateTranscriptCard(card, text){ const ta = card.querySelector('textarea'); if (ta && ta.value !== text) ta.value = text; }
+
+/* ---------- 用户轮次提交 → Agent 回应 ---------- */
+async function submitUserTurn(text, clipId){
+  addBubble('user', text);
+  session.rounds.push({ role: 'user', text, audioRef: clipId || null, at: Date.now() });
+  mergeElements(detectElements(text));
+  extractPersonaFrom(text);
+  saveDraft();
+  const reply = await agentReply(text);
+  session.rounds.push({ role: 'ai', text: reply.text, at: Date.now() });
+  saveDraft();
+  if (reply.ready && !session.continued && !session.suggestedOnce){
+    session.suggestedOnce = true; saveDraft();
+    showFinishGroup();
+  }
+}
+
+/* 结束按钮组（气泡下方自然展开） */
+function showFinishGroup(){
+  const list = $('chatList');
+  const div = document.createElement('div');
+  div.className = 'finish-group';
+  div.innerHTML = `
+    <div class="fg-title">这个故事听得差不多了，您看——</div>
+    <div class="fg-btns">
+      <button class="btn-finish go">📜 先到这里，生成人生故事页<small>把刚才讲的整理成一张手帖</small></button>
+      <button class="btn-finish more">💬 我还没说完，继续唠两句</button>
+    </div>`;
+  div.querySelector('.go').onclick = () => { div.remove(); gotoConfirm(); };
+  div.querySelector('.more').onclick = () => {
+    session.continued = true; saveDraft();
+    div.remove();
+    const ok = document.createElement('div');
+    ok.className = 'finish-confirmed'; ok.textContent = '✓ 已选择继续畅聊';
+    $('chatList').appendChild(ok); scrollChat();
+    toast('好嘞，接着唠，不着急');
+  };
+  list.appendChild(div); scrollChat();
+}
+
+/* ============================================================
+ * 演示大脑（本地规则引擎）——真实处理对话文本，绝不虚构故事内容
+ * ============================================================ */
+const ELEM_DEFS = { time:'时间', place:'地点', person:'人物', event:'事情', detail:'细节', feeling:'感受' };
+const REG_TIME = /(19[0-9]{2}|20[0-9]{2})\s*年|那年|那阵子|那时候|当年|小时候|年轻时候|年轻时|上学时|当兵|下乡|插队|进厂|结婚|退休|六十年代|七十年代|八十年代|九十年代|五几年|六几年|七几年|八几年|九几年/;
+const REG_PLACE_CITY = /(北京|上海|天津|重庆|沈阳|大连|长春|哈尔滨|广州|深圳|西安|成都|武汉|南京|杭州|青岛|济南|郑州|长沙|南昌|福州|昆明|贵阳|兰州|乌鲁木齐|拉萨|西宁|银川|呼和浩特|南宁|海口|石家庄|太原|合肥|南昌|东北|华南|西北|苏北|江南|老家|村里|厂里|大院|林场|兵团|农场|部队|学校|车间|车间里)/;
+const REG_PERSON = /(我爸|我妈|爷爷|奶奶|姥姥|姥爷|老爷子|老太太|我哥|我姐|我弟|我妹|老伴|爱人|对象|媳妇|丈夫|老公|闺女|女儿|儿子|孩子|老大|老二|叔叔|婶婶|姑姑|舅舅|姨妈|师傅|师父|工友|战友|同学|同事|邻居|老师|师傅们|亲家|表哥|表姐|堂哥|堂姐)/;
+const REG_FEELING = /(高兴|开心|快活|乐呵|欢喜|难过|伤心|想哭|掉泪|心疼|委屈|自豪|骄傲|光荣|激动|感慨|怀念|想念|后悔|害怕|吓|紧张|踏实|知足|幸福|甜|苦|酸楚|不容易|心酸|欣慰)/;
+const REG_EVENT = /(干了|做了|进了|考上|当选|当上|评上|得了|获|获奖|立了|结婚|办喜事|生了|生了|搬|买了|买|盖了|盖房|修了|开上|骑着|下乡|插队|参军|入伍|进厂|上班|干活|加班|出差|搬家|下岗|退休|上学|念书|教书|种地|收成|救人|帮忙|打架|吵架|出门|远行|探亲|相亲|定亲|处对象)/;
+
+function detectElements(text){
+  const t = text || '';
+  return {
+    time: REG_TIME.test(t),
+    place: REG_PLACE_CITY.test(t) || /(在|去|到|从|回|离)[\u4e00-\u9fa5]{1,3}(市|县|镇|村|屯|厂|矿|山|河|湖|岛|街|路)/.test(t),
+    person: REG_PERSON.test(t) || /(老|小|阿)[\u4e00-\u9fa5]{1,2}(师傅|哥|姐|叔|婶|爷|奶)/.test(t),
+    event: REG_EVENT.test(t) || t.length > 18,
+    detail: t.length > 40 || /\d+(\.\d+)?(块|元|毛|斤|里|米|岁|年|个月|天|夜|个小时)/.test(t),
+    feeling: REG_FEELING.test(t)
+  };
+}
+function mergeElements(e){
+  Object.keys(e).forEach(k => { if (e[k]) session.elements[k] = true; });
+}
+function elementScore(){ const e = session.elements; return Object.keys(e).filter(k => e[k]).length; }
+
+/* 画像沉淀：从原话自然提取，不做问卷 */
+function extractPersonaFrom(text){
+  const p = getPersona(); const before = JSON.stringify(p);
+  const push = (arr, v) => { v = (v||'').trim(); if (v && v.length <= 8 && !arr.includes(v)) { arr.push(v); if (arr.length > 12) arr.shift(); } };
+  const mCity = text.match(REG_PLACE_CITY); if (mCity) push(p.places, mCity[0]);
+  const mPerson = text.match(REG_PERSON); if (mPerson) push(p.relations, mPerson[0]);
+  const mStage = text.match(/(下乡|插队|当兵|进厂|上学|结婚|退休|带孩子|下海)/); if (mStage) push(p.stages, { '下乡':'下乡岁月','插队':'知青岁月','当兵':'当兵','进厂':'进厂上班','上学':'上学','结婚':'成家','退休':'退休','带孩子':'带娃','下海':'下海经商' }[mStage[1]] );
+  const mInt = text.match(/(秦腔|京剧|豫剧|评剧|二胡|口琴|象棋|书法|下棋|钓鱼|养花|种菜|唱歌|跳舞|织毛衣|打毛衣|无线电|收音机|集邮|画画)/); if (mInt) push(p.interests, mInt[1]);
+  if (JSON.stringify(p) !== before) savePersona(p);
+}
+
+/* 接住细节 + 单问题追问（演示大脑策略） */
+function demoBrainReply(userText){
+  const e = detectElements(userText);
+  mergeElements(e);
+  const keywords = pickKeywords(userText);
+  const kw = keywords.length ? keywords[0] : '这事儿';
+  const round = session.rounds.filter(r => r.role === 'user').length;
+  const opens = [
+    `哎，您这一说${kw}，我这就想听下去了。`,
+    `${kw}——就冲这个，您可得给我细讲讲。`,
+    `您提到${kw}，我脑子里都有画面了。`,
+    `哟，${kw}，这可太有讲头了。`
+  ];
+  const ack = round === 1 ? `晚上好，这里是光阴电台。${opens[0]}` : opens[Math.floor(Math.random()*opens.length)];
+  // 追问顺序：时间 → 地点 → 人物 → 细节 → 感受（一次只问一个）
+  if (!e.time && !session.elements.time) return { text: `${ack}这大概是哪一年的事儿？您那时候多大岁数？`, ready: false };
+  if (!e.place && !session.elements.place) return { text: `${ack}这事儿是在哪儿发生的？厂里、村里还是家里？`, ready: false };
+  if (!e.person && !session.elements.person) return { text: `${ack}那时候您身边都有谁？有没有谁跟这事儿最相干？`, ready: false };
+  if (!e.detail && !session.elements.detail) return { text: `${ack}您再给我说个具体的——比如那时候${kw}，是个啥样子？`, ready: false };
+  if (!e.feeling && !session.elements.feeling) return { text: `${ack}说这么多，那时候您心里头是啥滋味？`, ready: false };
+  // 六要素凑得差不多了
+  const score = elementScore();
+  if (score >= 4 && (session.elements.event || session.elements.detail)){
+    return { text: `${ack}您这段讲得真叫一个有滋味——时间、地方、人和事儿都在了，我都听进去了。要不咱先到这儿，我把您这段故事整理成一张人生手帖？整理完您再过目，不合适咱接着改。`, ready: true };
+  }
+  return { text: `${ack}后来呢？这事儿还有下文不？`, ready: false };
+}
+function pickKeywords(text){
+  const words = (text.match(/[\u4e00-\u9fa5]{2,4}/g) || []).filter(w => !/这个|那个|什么|怎么|就是|然后|当时|时候|那么|这样|我们|他们|自己|一天|一个/.test(w));
+  const freq = {};
+  words.forEach(w => freq[w] = (freq[w]||0)+1);
+  return Object.keys(freq).sort((a,b) => freq[b]-freq[a]).slice(0,3);
+}
+
+/* ============================================================
+ * 流式 LLM 客户端（OpenAI 兼容 · fetch ReadableStream）
+ * ============================================================ */
+const RADIO_SYSTEM_PROMPT = `你是“光阴电台”的主持人，一位温和的深夜人物访谈主持人，服务对象是55-85岁的中国老人。请严格遵守：
+1. 声音温暖、稳定、语速稍慢，但绝不刻意“哄老人”，不叫“叔叔阿姨”，开场称“您”。
+2. 每次只追问一个问题；优先接住用户刚才讲的具体细节再展开。
+3. 少说套话，不要频繁说“您太了不起了”。
+4. 遇到离世、疾病、家庭冲突等沉重内容，先轻声询问是否愿意继续，不要急着追问细节。
+5. 不美化、不补写、不判断人物动机；故事中的年份、姓名和关系不确定时，主动跟用户确认。
+6. 可以轻微适应用户的口语措辞，但不模仿方言。
+7. 每轮回复保持1-3句话，口语化，像电台广播说话，不用列表和标题。
+8. 结束判断：当对话已具备“发生了什么、大致时间、地点、关键人物、难忘细节、感受”中至少4项时，在回复末尾自然地建议把故事整理成人生故事页（问用户要不要现在整理），并在这条回复的最后单独输出标记 <READY>（只在建议生成时输出）。用户选择继续聊后，之后几轮不要再重复提议。`;
+
+async function llmStream(messages, onDelta){
+  const c = getCfg();
+  const res = await fetch(c.baseUrl.replace(/\/+$/,'') + '/chat/completions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + c.apiKey },
+    body: JSON.stringify({ model: c.model, messages, stream: true, temperature: 0.7, max_tokens: 500 })
+  });
+  if (!res.ok) throw new Error('LLM HTTP ' + res.status);
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buf = '', full = '';
+  while (true){
+    const { done, value } = await reader.read();
+    if (done) break;
+    buf += decoder.decode(value, { stream: true });
+    const lines = buf.split('\n'); buf = lines.pop() || '';
+    for (const line of lines){
+      const s = line.trim();
+      if (!s.startsWith('data:')) continue;
+      const payload = s.slice(5).trim();
+      if (payload === '[DONE]') continue;
+      try{
+        const j = JSON.parse(payload);
+        const delta = j.choices && j.choices[0] && j.choices[0].delta && j.choices[0].delta.content;
+        if (delta){ full += delta; onDelta && onDelta(delta); }
+      }catch(e){}
+    }
+  }
+  return full;
+}
+
+async function agentReply(userText){
+  if (llmReady()){
+    try{
+      const msgs = [{ role: 'system', content: RADIO_SYSTEM_PROMPT }];
+      if (session.topic) msgs.push({ role: 'system', content: `本轮讲述主题：${session.topic.title}（${session.topic.desc}）` });
+      session.rounds.slice(-12).forEach(r => msgs.push({ role: r.role === 'user' ? 'user' : 'assistant', content: r.text }));
+      if (msgs[msgs.length-1].role !== 'user') msgs.push({ role: 'user', content: userText });
+      let text = '';
+      const target = addBubble('ai', '');
+      RadioState.set('speaking', '主持人回应 · 可点左上“跳过”');
+      const skipBtn = showSkipBtn(); skipBtn.onclick = () => skipSpeak();
+      let spoken = false;
+      const streamPromise = llmStream(msgs, async (d) => { target.textContent += d; scrollChat(); });
+      // 边生成边朗读：前 1.2 秒收到的文字先播（简化：等首句后启动）
+      setTimeout(async () => {
+        if (target.textContent && !spoken){ spoken = true; await speakText(target.textContent.replace(/<READY>/g,'')); skipBtn.remove(); }
+      }, 1200);
+      text = await streamPromise;
+      let ready = false;
+      if (/<READY>/.test(text)){ ready = true; text = text.replace(/<READY>/g, '').trim(); }
+      target.textContent = text;
+      if (!spoken){ spoken = true; await speakText(text); skipBtn.remove(); }
+      RadioState.set('standby', '等待开口 · 旋钮微亮');
+      return { text, ready };
+    }catch(err){
+      toast('大模型接口没连上，先切回本地演示大脑');
+    }
+  }
+  const r = demoBrainReply(userText);
+  await aiSpeak(r.text);
+  return r;
+}
+
+/* 超长对话 → 章节草稿 */
+function checkChapterTooLong(){
+  const userRounds = session.rounds.filter(r => r.role === 'user').length;
+  if (userRounds > 12 && !session.chapterWarned){
+    session.chapterWarned = true; saveDraft();
+    toast('这章讲得够厚实了，建议先整理成故事页，剩下的话下章接着讲');
+    return true;
+  }
+  return false;
+}
+</script>
+<script>
+/* ============================================================
+ * 光阴手帖 v1.4 · JS Part 3 —— 结构化故事生成 / 确认 / 自然语言修改
+ * 两层加工：原话层（原样保留）+ 整理层（绝不虚构）
+ * ============================================================ */
+let pendingStory = null; // 确认前的草稿故事
+
+/* ---------- 文本处理工具 ---------- */
+function dedupFillers(text){
+  return text
+    .replace(/(嗯+|呃+|啊+|哎哟|哎呀){2,}/g, '$1')
+    .replace(/(然后|就是说|这个这个|那个那个|怎么说呢){2,}/g, '$1')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+}
+function splitSentences(text){
+  return (text.replace(/([。！？!?~；;])/g, '$1\u0001').split('\u0001')).map(s => s.trim()).filter(Boolean);
+}
+function extractYear(text){
+  let m = text.match(/(19[5-9]\d|20[0-2]\d)\s*年/);
+  if (m) return parseInt(m[1], 10);
+  m = text.match(/(五几年|六几年|七几年|八几年|九几年)/);
+  if (m) return { '五几年':1957, '六几年':1967, '七几年':1977, '八几年':1987, '九几年':1997 }[m[1]];
+  m = text.match(/(五十|六十|七十|八十|九十)年代/);
+  if (m) return { '五十':1955, '六十':1965, '七十':1975, '八十':1985, '九十':1995 }[m[1]];
+  return null;
+}
+function extractLifeStage(text, year){
+  if (/知青|插队|下乡/.test(text)) return '知青岁月';
+  if (/当兵|部队|参军/.test(text)) return '军旅时光';
+  if (/退休/.test(text)) return '退休光阴';
+  if (/结婚|成家|办喜事|媳妇|对象/.test(text)) return '成家立业';
+  if (/上学|念书|学校/.test(text)) return '求学年代';
+  if (/下海|生意|买卖|个体/.test(text)) return '改革弄潮';
+  if (/带孩子|孙子|孙女|外孙/.test(text)) return '含饴弄孙';
+  if (year){
+    if (year < 1965) return '青春年少';
+    if (year < 1980) return '峥嵘岁月';
+    if (year < 2000) return '而立奋进';
+    return '岁月静好';
+  }
+  return '岁月时光';
+}
+function extractPlace(text){
+  const m = text.match(REG_PLACE_CITY);
+  return m ? m[0] : '';
+}
+function extractPersons(text){
+  const set = new Set();
+  let m; const re = new RegExp(REG_PERSON.source, 'g');
+  while ((m = re.exec(text))) set.add(m[0]);
+  const named = text.match(/(老|小|阿)[\u4e00-\u9fa5]{1,2}(?=(师傅|哥|姐|叔|婶|爷|奶))/g);
+  (named || []).forEach(n => set.add(n));
+  return [...set].slice(0, 5);
+}
+function makeTitle(session, keywords){
+  if (session.topic){
+    const t = session.topic.title;
+    if (/第|最/.test(t)) return `《${t}》`.replace('《《','《');
+  }
+  if (keywords.length) return `那年那事：${keywords[0]}`;
+  return '一段值得记住的岁月';
+}
+
+/* ---------- 本地故事生成（演示大脑 · 全部素材取自真实对话，绝不虚构） ---------- */
+function buildStoryLocal(){
+  const userTexts = session.rounds.filter(r => r.role === 'user').map(r => r.text);
+  const all = userTexts.join(' ');
+  const sentences = [];
+  userTexts.forEach(t => splitSentences(dedupFillers(t)).forEach(s => sentences.push(s)));
+  // 原话层：挑最具口述特色的句子（含口语词、数字细节优先，按原样）
+  const oralMarks = /(那时候|当年|可|真|老|啥|咋|贼|老鼻子|得劲|心里头|你说)/;
+  let quotes = sentences.filter(s => s.length >= 10 && (oralMarks.test(s) || /\d/.test(s)));
+  if (!quotes.length) quotes = sentences.filter(s => s.length >= 10);
+  quotes = quotes.slice(0, 3);
+  // 整理层：只做顺序合并、去重复语气词与分段，不改写事实
+  const body = [];
+  let para = [];
+  sentences.forEach((s, i) => {
+    para.push(s);
+    if (para.length >= 3 || (/[。！？]$/.test(s) && para.length >= 2 && i < sentences.length - 1 && body.length < 3)){
+      body.push(para.join('')); para = [];
+    }
+  });
+  if (para.length) body.push(para.join(''));
+  const year = extractYear(all);
+  const stage = extractLifeStage(all, year);
+  const place = extractPlace(all);
+  const persons = extractPersons(all);
+  const keywords = pickKeywords(all);
+  const clips = session.rounds.filter(r => r.role === 'user' && r.audioRef).map(r => r.audioRef);
+  const mainClip = clips[clips.length - 1] || null;
+  const clipData = mainClip && pendingClips[mainClip];
+  return {
+    id: 'story_' + Date.now(),
+    title: makeTitle(session, keywords),
+    original_quotes: quotes,
+    compiled_body: body,
+    time_span: { year_approx: year, life_stage: stage },
+    place,
+    persons,
+    tags: (session.topic && session.topic.tags) || [],
+    audioRef: mainClip,
+    audioPeaks: clipData ? clipData.peaks : null,
+    audioDur: clipData ? clipData.dur : 0,
+    elements: { ...session.elements },
+    created_at: Date.now(),
+    archived: false,
+    shared: false,
+    family: null,
+    source: 'local'
+  };
+}
+
+/* ---------- LLM 故事生成（真实模式 · JSON 结构化输出） ---------- */
+async function buildStoryLLM(){
+  const transcript = session.rounds.map(r => (r.role === 'user' ? '用户：' : '主持人：') + r.text).join('\n');
+  const prompt = `以下是电台访谈的完整对话记录。请整理成结构化人生故事，严格遵守“绝不虚构”：所有事实、年份、地点、人物、情节只能来自用户的原话，不得补写、美化或判断动机。
+
+对话记录：
+${transcript}
+
+请只输出一个 JSON 对象（不要多余文字），结构如下：
+{
+  "title": "故事标题（8字内，朴实，不要书名号）",
+  "original_quotes": ["用户原话中最有个人特色的1-3句（原样保留，含口语，不改写）"],
+  "compiled_body": ["整理后的正文段落（只调整顺序、删重复语气词、分段，不新增任何事实，2-4段，每段2-4句）"],
+  "time_span": { "year_approx": 1978, "life_stage": "知青岁月（或：峥嵘岁月/成家立业/退休光阴等，若对话无年份信息则 year_approx 为 null）" },
+  "place": "故事发生地（对话中提到的，没有则空字符串）",
+  "persons": [{"name":"人物称呼","relation":"与讲述者的关系"}]
+}`;
+  const c = getCfg();
+  const res = await fetch(c.baseUrl.replace(/\/+$/,'') + '/chat/completions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + c.apiKey },
+    body: JSON.stringify({ model: c.model, messages: [{ role: 'system', content: prompt }], temperature: 0.3 })
+  });
+  if (!res.ok) throw new Error('LLM HTTP ' + res.status);
+  const data = await res.json();
+  let raw = (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) || '';
+  const m = raw.match(/\{[\s\S]*\}/);
+  if (!m) throw new Error('bad json');
+  const j = JSON.parse(m[0]);
+  const clips = session.rounds.filter(r => r.role === 'user' && r.audioRef).map(r => r.audioRef);
+  const mainClip = clips[clips.length - 1] || null;
+  const clipData = mainClip && pendingClips[mainClip];
+  const bodyArr = Array.isArray(j.compiled_body) ? j.compiled_body : [String(j.compiled_body || '')];
+  const year = j.time_span && (j.time_span.year_approx || null);
+  return {
+    id: 'story_' + Date.now(),
+    title: j.title || makeTitle(session, []),
+    original_quotes: (j.original_quotes || []).slice(0, 3),
+    compiled_body: bodyArr.filter(Boolean),
+    time_span: { year_approx: (typeof year === 'number' ? year : null), life_stage: (j.time_span && j.time_span.life_stage) || '岁月时光' },
+    place: j.place || extractPlace(transcript),
+    persons: (j.persons || []).slice(0, 5),
+    tags: (session.topic && session.topic.tags) || [],
+    audioRef: mainClip,
+    audioPeaks: clipData ? clipData.peaks : null,
+    audioDur: clipData ? clipData.dur : 0,
+    elements: { ...session.elements },
+    created_at: Date.now(),
+    archived: false, shared: false, family: null,
+    source: 'llm'
+  };
+}
+
+/* ---------- 进入确认页 ---------- */
+async function gotoConfirm(){
+  const userSaid = session.rounds.some(r => r.role === 'user' && r.text && r.text.length > 2);
+  if (!userSaid){ toast('还没讲呢，先说上一段，我给您整理'); return; }
+  let story = null;
+  if (llmReady()){
+    try{ story = await buildStoryLLM(); }catch(e){ toast('大模型整理没成，用本地整理先出一版'); }
+  }
+  if (!story) story = buildStoryLocal();
+  pendingStory = story;
+  renderConfirm(story);
+  showView('confirm');
+}
+
+function renderConfirm(story){
+  const e = story.elements || {};
+  const chips = [];
+  if (story.time_span.year_approx) chips.push('约 ' + story.time_span.year_approx + ' 年');
+  if (story.time_span.life_stage) chips.push(story.time_span.life_stage);
+  if (story.place) chips.push('📍 ' + story.place);
+  (story.persons || []).forEach(p => chips.push(typeof p === 'string' ? p : p.name));
+  const elemHtml = Object.keys(ELEM_DEFS).map(k =>
+    `<span class="${e[k] ? 'ok' : 'miss'}">${e[k] ? '✓' : '○'} ${ELEM_DEFS[k]}</span>`).join('');
+  $('confirmPaper').innerHTML = `
+    <h3>📜 您的原话（一字没动）</h3>
+    ${story.original_quotes.map(q => `<div class="quote-block"><p>${esc(q)}</p><div class="q-src">—— 出自您刚才的讲述</div></div>`).join('') || '<div class="quote-block"><p>（这段没挑出长句，正文里都有）</p></div>'}
+    <h3>✍️ 整理后的故事（只理顺，不添油加醋）</h3>
+    <div class="compiled-block" id="confirmBody">${story.compiled_body.map(p => `<p contenteditable="true" spellcheck="false">${esc(p)}</p>`).join('')}</div>
+    <div class="meta-chips">${chips.map(c => `<span>${esc(c)}</span>`).join('') || '<span>时间地点：对话里没提到，可以回去补一句</span>'}</div>
+    <div class="element-check">${elemHtml}</div>`;
+  $('confirmFoot').innerHTML = story.source === 'llm'
+    ? '本页由流式大模型整理 · 原话层 / 整理层两层加工 · 绝不虚构'
+    : '本页由本地整理引擎生成 · 原话层 / 整理层两层加工 · 绝不虚构<br>正文可以直接点着改';
+}
+/* 确认前把手动编辑的正文收回来 */
+function collectEditedBody(){
+  const el = $('confirmBody');
+  if (!el || !pendingStory) return;
+  pendingStory.compiled_body = [...el.querySelectorAll('p')].map(p => p.textContent.trim()).filter(Boolean);
+}
+
+/* ============================================================
+ * 自然语言修改（口述式 · 无需逐字编辑）
+ * ============================================================ */
+function applyReviseLocal(story, cmd){
+  const c = (cmd || '').trim();
+  let changed = [];
+  // 意图1：删除某句话（“这句话不是我说的”“把…删了”）
+  const mDel = c.match(/["“]([^"”]{4,})["”]/);
+  if (/不是我说的|删掉|删除|去掉|别说/.test(c) && mDel){
+    const target = mDel[1];
+    const find = (arr) => arr.findIndex(s => s.includes(target) || target.includes(s.replace(/[…。！？，,.!?]/g, '').slice(0, 8)));
+    let i = find(story.compiled_body);
+    if (i >= 0){ story.compiled_body.splice(i, 1); changed.push('已删掉那句'); }
+    else {
+      story.compiled_body = story.compiled_body.map(p => splitSentences(p).filter(s => !s.includes(target)).join('')).filter(Boolean);
+      changed.push('已把相近的话去掉了');
+    }
+    story.original_quotes = story.original_quotes.filter(q => !q.includes(target));
+    return { story, note: changed[0] || '没找到那句，您再指细一点' };
+  }
+  // 意图2：去名字 / 脱敏（“不要写老王的名字”“别提我姐”）
+  const mName = c.match(/(?:不要写|别写|不要提|别提|去掉)([^\s，。！？]{1,5})(?:的名字|的名字|)?/);
+  if (mName && /名字|称呼|别提|不要写|去掉/.test(c)){
+    const name = mName[1];
+    const map = { '老王':'老工友', '老李':'老同事', '老张':'老朋友' };
+    const rep = map[name] || '那位老朋友';
+    story.compiled_body = story.compiled_body.map(p => p.split(name).join(rep));
+    story.original_quotes = story.original_quotes.map(q => q.split(name).join(rep));
+    story.persons = (story.persons || []).filter(p => {
+      const n = typeof p === 'string' ? p : p.name;
+      return !n.includes(name);
+    });
+    return { story, note: `已把“${name}”换成“${rep}”` };
+  }
+  // 意图3：改时间（“不是1978年，是1985年”）
+  const mYear = c.match(/(\d{4})\s*年/);
+  if (mYear && /不是|改成|应该是|记错/.test(c)){
+    const y = parseInt(mYear[1], 10);
+    if (y > 1900 && y < 2100){ story.time_span.year_approx = y; return { story, note: `时间已改为 ${y} 年` }; }
+  }
+  // 意图4：改地点
+  const mPlace = c.match(/(?:不是在|是在|发生在)([\u4e00-\u9fa5]{2,6})(?:，|。|!|！|$)/);
+  if (mPlace && /地点|不是在|是在/.test(c)){
+    story.place = mPlace[1];
+    return { story, note: `地点已改为${mPlace[1]}` };
+  }
+  return null;
+}
+async function applyRevise(story, cmd){
+  if (llmReady()){
+    try{
+      const c = getCfg();
+      const res = await fetch(c.baseUrl.replace(/\/+$/,'') + '/chat/completions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + c.apiKey },
+        body: JSON.stringify({
+          model: c.model,
+          messages: [{ role: 'user', content: `这是长辈的人生故事（JSON）：\n${JSON.stringify({ title: story.title, original_quotes: story.original_quotes, compiled_body: story.compiled_body, place: story.place, persons: story.persons, time_span: story.time_span })}\n\n长辈的修改口令：“${cmd}”\n请按口令修改（只删改，绝不新增事实），只输出修改后的完整 JSON，结构与输入一致。` }],
+          temperature: 0.2
+        })
+      });
+      const data = await res.json();
+      const raw = (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) || '';
+      const m = raw.match(/\{[\s\S]*\}/);
+      if (m){
+        const j = JSON.parse(m[0]);
+        if (j.compiled_body) story.compiled_body = Array.isArray(j.compiled_body) ? j.compiled_body : [j.compiled_body];
+        if (j.original_quotes) story.original_quotes = j.original_quotes;
+        if (j.place !== undefined) story.place = j.place;
+        if (j.persons) story.persons = j.persons;
+        if (j.time_span) story.time_span = j.time_span;
+        return { story, note: '按您说的改好了' };
+      }
+    }catch(e){}
+  }
+  const local = applyReviseLocal(story, cmd);
+  if (local) return local;
+  return null;
+}
+</script>
+<script>
+/* ============================================================
+ * 光阴手帖 v1.4 · JS Part 4 —— 故事页 / 长图 / 分享 / 长卷 / 路由
+ * ============================================================ */
+let currentStory = null;      // 正在查看的故事对象
+let storyMode = 'fresh';      // fresh=刚生成 | archived=归档查看 | shared=家人分享页
+let currentAudio = null;
+
+/* ---------- 视图路由 ---------- */
+function showView(name){
+  ['viewHome','viewChat','viewConfirm','viewStory','viewScroll'].forEach(v => $(v).classList.add('hidden'));
+  const map = { home:'viewHome', chat:'viewChat', confirm:'viewConfirm', story:'viewStory', scroll:'viewScroll' };
+  $(map[name]).classList.remove('hidden');
+  try{ if (location.hash !== '#story' && location.hash !== '#shared') history.replaceState(null, '', '#' + (name === 'home' ? '' : name)); }catch(e){}
+}
+
+/* ---------- 确认后 → 显影生成故事页 ---------- */
+async function confirmAndGenerate(){
+  collectEditedBody();
+  clearDraft();
+  RadioState.set('done', '故事完成 · 磁带停了');
+  const mask = $('developingMask');
+  mask.classList.remove('hidden');
+  const texts = ['磁带停了 · 照片正在显影…', '岁月正在纸页上落定…', '手帖快好了，再等等…'];
+  let i = 0;
+  const timer = setInterval(() => { $('devText').textContent = texts[++i % texts.length]; }, 1100);
+  await waitMs(2600);
+  clearInterval(timer);
+  mask.classList.add('hidden');
+  const flash = $('devFlash'); flash.classList.remove('go'); void flash.offsetWidth; flash.classList.add('go');
+  renderStory(pendingStory, 'fresh');
+  showView('story');
+  revealStoryPaper();
+  speakText('您的手帖显影好了，慢慢看，哪里不对跟我说。');
+}
+
+/* ---------- 故事页渲染 ---------- */
+function renderStory(story, mode){
+  currentStory = story; storyMode = mode;
+  $('storyHeaderTitle').textContent = mode === 'shared' ? '家人分享的故事' : '人生故事页';
+  const banner = $('storySharedBanner');
+  if (mode === 'shared'){
+    banner.classList.remove('hidden');
+    banner.innerHTML = `💌 家人给您寄来一页<b>人生手帖</b>——看完可以在下面点个赞、回一句话（家人回应为场景模拟演示）`;
+  } else banner.classList.add('hidden');
+
+  const y = story.time_span && story.time_span.year_approx;
+  const metaParts = [];
+  metaParts.push(y ? `约 ${y} 年` : '岁月时光');
+  if (story.time_span && story.time_span.life_stage) metaParts.push(story.time_span.life_stage);
+  if (story.place) metaParts.push('📍 ' + story.place);
+  const audioHtml = story.audioRef ? `
+    <div class="sp-sec reveal">
+      <div class="sec-label">🎧 原声留声</div>
+      <div class="sp-audio" id="storyAudio">
+        <button class="play-btn" id="btnPlayAudio">▶</button>
+        <div class="wave" id="storyWave"></div>
+        <span class="dur" id="storyDur">${fmtDur(story.audioDur)}</span>
+      </div>
+    </div>` : '';
+  const fam = getFamilyEchoFor(story);
+  const famHtml = `
+    <div class="sp-sec reveal">
+      <div class="sec-label">家人回应</div>
+      <div class="family-box">
+        <div class="fb-title"><span>来自孩子们</span><span class="fb-tag">场景模拟</span></div>
+        <div class="like-row">
+          <div class="liked-avatars">${fam.likes.map(w => `<span class="fa">${esc(w.icon)}</span>`).join('')}</div>
+          <button class="btn-heart ${fam.myLiked ? 'done' : ''}" id="btnLikeStory">❤️ ${fam.likes.length ? '家人赞过' : '送个赞'}</button>
+        </div>
+        ${fam.replies.map(r => `<div class="family-row"><span class="fa">${esc(r.icon)}</span><span class="fmsg">${esc(r.text)}</span>${r.heart ? '<span class="fheart">❤️</span>' : ''}</div>`).join('')}
+        ${mode === 'shared' ? `
+        <div style="display:flex;gap:8px;margin-top:10px;">
+          <input id="familyReplyInput" placeholder="回一句话…" style="flex:1;border:1.5px solid #EADFC4;border-radius:12px;padding:9px 12px;font-size:15px;outline:none;background:#FFFDF6;">
+          <button class="mini-btn primary" id="btnFamilyReply">回复</button>
+        </div>` : ''}
+      </div>
+    </div>`;
+  $('storyPaper').innerHTML = `
+    <div class="sp-brand"><span>光阴手帖 · SILVER MEMOIR</span><span class="seal">岁月留声</span></div>
+    <h2 class="sp-title reveal">${esc(story.title)}</h2>
+    <div class="sp-meta reveal">${metaParts.map(esc).join(' · ')}</div>
+    <div class="sp-divider"></div>
+    <div class="sp-sec sp-essay">
+      <div class="sec-label">整理后的故事</div>
+      ${story.compiled_body.map(p => `<p class="reveal">${esc(p)}</p>`).join('')}
+    </div>
+    ${story.original_quotes && story.original_quotes.length ? `
+    <div class="sp-sec sp-quotes">
+      <div class="sec-label">长辈原话</div>
+      ${story.original_quotes.map(q => `<div class="q reveal">${esc(q)}</div>`).join('')}
+    </div>` : ''}
+    ${audioHtml}
+    ${famHtml}`;
+  renderStoryBelow(story, mode);
+  renderWave(story);
+  bindStoryAudio(story);
+  bindFamilyInteractions(story);
+}
+function renderStoryBelow(story, mode){
+  const below = $('storyBelowPaper');
+  if (mode === 'fresh'){
+    below.innerHTML = `
+      <div class="revise-bar">
+        <div class="rb-title">想改哪里，直接用嘴说</div>
+        <div class="rb-ex">比如：“这句话不是我说的”、“不要写老王的名字”、“不是1978年，是1985年”</div>
+        <textarea id="reviseInput" placeholder="在这儿说修改的意思…"></textarea>
+        <div class="revise-actions">
+          <button class="mini-btn" id="btnReviseSkip">不改了</button>
+          <button class="mini-btn primary" id="btnReviseGo">按这个改</button>
+        </div>
+      </div>
+      <div class="share-grid">
+        <button class="share-btn save" id="btnSaveImage">📥 保存到相册<small>生成长图</small></button>
+        <button class="share-btn link" id="btnCopyLink">🔗 复制分享链接<small>发给孩子</small></button>
+      </div>
+      <div class="archive-zone">
+        <button class="btn-archive-main" id="btnArchive">🗺️ 存入人生长卷</button>
+        <button class="btn-archive-sub" id="btnShareFamily">发给孩子们瞧瞧 →</button>
+      </div>`;
+    $('btnReviseGo').onclick = async () => {
+      const cmd = $('reviseInput').value.trim();
+      if (!cmd){ toast('您想说啥修改，先打几个字'); return; }
+      const r = await applyRevise(story, cmd);
+      if (r){ toast(r.note); renderStory(story, 'fresh'); revealStoryPaper(true); }
+      else toast('这句我没听明白——换个说法试试，比如“不要写老王的名字”');
+    };
+    $('btnReviseSkip').onclick = () => { below.querySelector('.revise-bar').classList.add('hidden'); };
+    $('btnSaveImage').onclick = () => exportLongImage(story);
+    $('btnCopyLink').onclick = () => copyShareLink(story);
+    $('btnArchive').onclick = () => archiveStory(story);
+    $('btnShareFamily').onclick = () => { copyShareLink(story, true); };
+  } else if (mode === 'archived'){
+    below.innerHTML = `
+      <div class="share-grid">
+        <button class="share-btn save" id="btnSaveImage">📥 保存到相册<small>生成长图</small></button>
+        <button class="share-btn link" id="btnCopyLink">🔗 复制分享链接<small>发给孩子</small></button>
+      </div>
+      <div class="archived-flag">✓ 已归入人生长卷 · ${story.time_span.year_approx ? story.time_span.year_approx + '年' : '岁月时光'}</div>`;
+    $('btnSaveImage').onclick = () => exportLongImage(story);
+    $('btnCopyLink').onclick = () => copyShareLink(story);
+  } else {
+    below.innerHTML = '';
+  }
+}
+function revealStoryPaper(fast){
+  const els = [...document.querySelectorAll('#storyPaper .reveal')];
+  els.forEach((el, i) => setTimeout(() => el.classList.add('on'), (fast ? 120 : 450) + i * (fast ? 90 : 260)));
+}
+function fmtDur(s){ if (!s || !isFinite(s)) return '--:--'; const m = Math.floor(s/60), sec = Math.floor(s%60); return m + ':' + String(sec).padStart(2,'0'); }
+
+/* ---------- 原声波形与回放 ---------- */
+function renderWave(story){
+  const wave = $('storyWave'); if (!wave) return;
+  const peaks = story.audioPeaks && story.audioPeaks.length ? story.audioPeaks : Array.from({length: 36}, () => 0.2 + Math.random()*0.5);
+  wave.innerHTML = peaks.map(p => `<i style="height:${Math.round(6 + p * 30)}px"></i>`).join('');
+}
+function bindStoryAudio(story){
+  const btn = $('btnPlayAudio'); if (!btn || !story.audioRef) return;
+  btn.onclick = async () => {
+    if (currentAudio && !currentAudio.paused){ currentAudio.pause(); return; }
+    let url = null;
+    if (pendingClips[story.audioRef]) url = pendingClips[story.audioRef].url;
+    if (!url){
+      const blob = await AudioStore.get(story.audioRef);
+      if (blob) url = URL.createObjectURL(blob);
+    }
+    if (!url){ toast('这段原声不在本机了（原声只存在讲述时的设备里）'); return; }
+    currentAudio = new Audio(url);
+    $('storyAudio').classList.add('playing');
+    btn.textContent = '⏸';
+    currentAudio.onended = () => { $('storyAudio') && $('storyAudio').classList.remove('playing'); btn.textContent = '▶'; };
+    currentAudio.onpause = () => { const el = $('storyAudio'); if (el) el.classList.remove('playing'); btn.textContent = '▶'; };
+    currentAudio.play().catch(() => toast('点一下页面任意处再播放'));
+  };
+}
+
+/* ---------- 家人回应（场景模拟 · 预设数据 + 本地互动） ---------- */
+const PRESET_FAMILY = {
+  likes: [ { icon:'敏', name:'女儿 敏敏' }, { icon:'健', name:'儿子 阿健' } ],
+  replies: [
+    { icon:'敏', text:'妈，你当年原来这么厉害，为你骄傲！', heart:true },
+    { icon:'健', text:'这段讲得真好，回头再多讲点，我都存着呢。', heart:false }
+  ]
+};
+function getFamilyEchoFor(story){
+  const all = getFamilyEcho();
+  const mine = all[story.id] || {};
+  const likes = [...PRESET_FAMILY.likes.map(l => ({ ...l }))];
+  if (mine.myLiked && !likes.some(l => l.icon === '我')) likes.push({ icon:'我', name:'我' });
+  const replies = [...PRESET_FAMILY.replies.map(r => ({ ...r })), ...(mine.replies || [])];
+  return { likes, replies, myLiked: !!mine.myLiked };
+}
+function bindFamilyInteractions(story){
+  const likeBtn = $('btnLikeStory');
+  if (likeBtn){
+    likeBtn.onclick = () => {
+      const all = getFamilyEcho();
+      const mine = all[story.id] || {};
+      mine.myLiked = !mine.myLiked;
+      all[story.id] = mine; saveFamilyEcho(all);
+      renderStory(story, storyMode); revealStoryPaper(true);
+      toast(mine.myLiked ? '已给这个故事点了个赞' : '赞已收回');
+    };
+  }
+  const replyBtn = $('btnFamilyReply');
+  if (replyBtn){
+    replyBtn.onclick = () => {
+      const input = $('familyReplyInput');
+      const text = input.value.trim();
+      if (!text){ toast('先写一句想说的'); return; }
+      const all = getFamilyEcho();
+      const mine = all[story.id] || {};
+      mine.replies = (mine.replies || []).concat([{ icon:'我', text, heart:false }]);
+      all[story.id] = mine; saveFamilyEcho(all);
+      renderStory(story, storyMode); revealStoryPaper(true);
+      toast('一句话回应已送到（场景模拟演示）');
+    };
+  }
+}
+
+/* ---------- 归档 ---------- */
+function archiveStory(story){
+  story.archived = true;
+  const stories = getStories();
+  const idx = stories.findIndex(s => s.id === story.id);
+  if (idx >= 0) stories[idx] = story; else stories.push(story);
+  saveStories(stories);
+  toast('已归入人生长卷 🗺️');
+  renderStory(story, 'archived'); revealStoryPaper(true);
+  refreshHomeStats();
+}
+
+/* ---------- 分享链接（故事数据编码进 URL，分享即抵达） ---------- */
+function encodeStory(story){
+  const lite = { t: story.title, b: story.compiled_body, q: story.original_quotes, y: story.time_span.year_approx, s: story.time_span.life_stage, p: story.place };
+  try{ return btoa(unescape(encodeURIComponent(JSON.stringify(lite)))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,''); }
+  catch(e){ return ''; }
+}
+function decodeStory(b64){
+  try{
+    const s = b64.replace(/-/g,'+').replace(/_/g,'/');
+    const j = JSON.parse(decodeURIComponent(escape(atob(s))));
+    return { id: 'shared_' + Date.now(), title: j.t, compiled_body: j.b || [], original_quotes: j.q || [], time_span: { year_approx: j.y, life_stage: j.s || '岁月时光' }, place: j.p || '', persons: [], tags: [], audioRef: null, elements: {}, created_at: Date.now(), archived: false, source: 'shared' };
+  }catch(e){ return null; }
+}
+function shareUrl(story){
+  const base = location.origin + location.pathname;
+  return base + '#shared=' + encodeStory(story);
+}
+function copyShareLink(story, notify){
+  const url = shareUrl(story);
+  const done = () => toast(notify ? '链接已复制，去微信发给孩子吧 💬' : '链接已复制，谁都能打开看');
+  if (navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(url).then(done).catch(() => fallbackCopy(url, done));
+  } else fallbackCopy(url, done);
+}
+function fallbackCopy(text, done){
+  const ta = document.createElement('textarea');
+  ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+  document.body.appendChild(ta); ta.select();
+  try{ document.execCommand('copy'); done(); }catch(e){ toast('复制没成，长按这条链接手动复制：' + text); }
+  ta.remove();
+}
+
+/* ---------- 长图导出（Canvas 手绘 · 宣纸手帖风） ---------- */
+async function exportLongImage(story){
+  const W = 750, PAD = 56;
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d');
+  const fonts = '"PingFang SC","Microsoft YaHei",serif';
+  // 预排版
+  ctx.font = `30px ${fonts}`;
+  const maxW = W - PAD * 2;
+  const wrap = (text, size, bold) => {
+    ctx.font = `${bold ? 'bold ' : ''}${size}px ${fonts}`;
+    const lines = [];
+    let line = '';
+    for (const ch of text){
+      if (ctx.measureText(line + ch).width > maxW){ lines.push(line); line = ch; }
+      else line += ch;
+    }
+    if (line) lines.push(line);
+    return lines;
+  };
+  const bodyLines = [];
+  story.compiled_body.forEach(p => { wrap(p, 30).forEach(l => bodyLines.push(l)); bodyLines.push(''); });
+  const quoteLines = [];
+  (story.original_quotes || []).forEach(q => { wrap('“' + q + '”', 27).forEach(l => quoteLines.push(l)); quoteLines.push(''); });
+  const titleLines = wrap(story.title, 44, true);
+  const meta = (story.time_span.year_approx ? '约 ' + story.time_span.year_approx + ' 年 · ' : '') + (story.time_span.life_stage || '') + (story.place ? ' · 📍' + story.place : '');
+  const H = 210 + titleLines.length * 62 + 46 + 40 + bodyLines.length * 48 + 66 + (quoteLines.length ? quoteLines.length * 42 + 46 : 0) + 150;
+  canvas.width = W; canvas.height = Math.max(H, 900);
+  // 宣纸底
+  const g = ctx.createLinearGradient(0, 0, 0, canvas.height);
+  g.addColorStop(0, '#FBF7ED'); g.addColorStop(1, '#F3EAD5');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, canvas.height);
+  // 纸纹噪点
+  ctx.fillStyle = 'rgba(120,90,50,.05)';
+  for (let i = 0; i < 1400; i++) ctx.fillRect(Math.random()*W, Math.random()*canvas.height, 1.6, 1.6);
+  // 顶部暖光
+  const rg = ctx.createRadialGradient(W*0.85, 0, 40, W*0.85, 0, 420);
+  rg.addColorStop(0, 'rgba(255,200,110,.16)'); rg.addColorStop(1, 'rgba(255,200,110,0)');
+  ctx.fillStyle = rg; ctx.fillRect(0, 0, W, 500);
+  let y = 86;
+  ctx.fillStyle = '#8A5E14'; ctx.font = `22px ${fonts}`; ctx.textAlign = 'center';
+  ctx.fillText('光 阴 手 帖 · 岁 月 留 声', W/2, y); y += 26;
+  ctx.fillStyle = '#B7A381'; ctx.font = `18px ${fonts}`;
+  ctx.fillText('SILVER MEMOIR · SILVER FM', W/2, y); y += 56;
+  // 标题
+  ctx.fillStyle = '#3E2F21'; ctx.font = `bold 44px ${fonts}`;
+  titleLines.forEach(l => { ctx.fillText(l, W/2, y); y += 62; });
+  y += 8;
+  ctx.fillStyle = '#997F62'; ctx.font = `24px ${fonts}`;
+  ctx.fillText(meta, W/2, y); y += 40;
+  // 分割线
+  const dg = ctx.createLinearGradient(PAD, 0, W-PAD, 0);
+  dg.addColorStop(0, 'rgba(216,199,160,0)'); dg.addColorStop(.5, '#D8C7A0'); dg.addColorStop(1, 'rgba(216,199,160,0)');
+  ctx.fillStyle = dg; ctx.fillRect(PAD, y, W-PAD*2, 2); y += 44;
+  // 正文
+  ctx.textAlign = 'left';
+  ctx.fillStyle = '#3E2F21'; ctx.font = `30px ${fonts}`;
+  bodyLines.forEach(l => { if (l){ ctx.fillText(l, PAD, y); } y += 48; });
+  // 原话
+  if (quoteLines.length){
+    y += 14;
+    ctx.fillStyle = '#B07E22'; ctx.font = `22px ${fonts}`;
+    ctx.fillText('—— 长 辈 原 话 ——', W/2, y); ctx.textAlign = 'left'; y += 40;
+    ctx.font = `27px ${fonts}`;
+    quoteLines.forEach(l => {
+      if (l){
+        ctx.fillStyle = 'rgba(200,150,60,.10)';
+        const w = ctx.measureText(l).width;
+        ctx.fillRect(PAD - 8, y - 30, w + 20, 42);
+        ctx.fillStyle = '#B07E22'; ctx.fillRect(PAD - 14, y - 30, 5, 42);
+        ctx.fillStyle = '#5C4433'; ctx.fillText(l, PAD, y);
+      }
+      y += 42;
+    });
+  }
+  // 波形装饰
+  y += 16;
+  ctx.fillStyle = '#C7A45C';
+  const peaks = (story.audioPeaks && story.audioPeaks.length ? story.audioPeaks : Array.from({length: 40}, () => 0.3));
+  peaks.forEach((p, i) => {
+    const h = 8 + p * 30;
+    ctx.fillRect(W/2 - peaks.length * 4 + i * 8, y - h/2, 4, h);
+  });
+  y += 56;
+  // 页脚
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#B3432B'; ctx.font = `bold 22px ${fonts}`;
+  ctx.fillText('岁 月 留 声', W/2, y); y += 30;
+  ctx.fillStyle = '#B7A381'; ctx.font = `19px ${fonts}`;
+  ctx.fillText('这段故事由长辈口述 · 光阴电台整理 · 绝不虚构', W/2, y);
+  // 导出
+  const url = canvas.toDataURL('image/png');
+  const a = document.createElement('a');
+  a.href = url; a.download = '光阴手帖-' + (story.title || '岁月留声') + '.png';
+  document.body.appendChild(a); a.click(); a.remove();
+  toast('长图已生成——已开始下载，手机上也可长按弹窗图片保存');
+}
+
+/* ============================================================
+ * 人生长卷（纵向漫游 · 渐进显现 · 时序归位）
+ * ============================================================ */
+function openScroll(){
+  const stories = getStories().filter(s => s.archived).sort((a, b) => {
+    const ya = a.time_span && a.time_span.year_approx || 9999;
+    const yb = b.time_span && b.time_span.year_approx || 9999;
+    return ya - yb;
+  });
+  const nodes = $('scrollNodes');
+  if (!stories.length){
+    nodes.innerHTML = `
+      <div class="scroll-empty">
+        <div class="big-ico">🗺️</div>
+        <h3>长卷还是空的</h3>
+        <p>每讲一段故事、确认归档之后，<br>它就会按年代落在这条岁月的长卷上。<br>第一段故事，今晚就开始吧。</p>
+        <button class="btn-archive-main" style="display:inline-flex;padding:13px 30px;font-size:16px;" onclick="showView('home')">去讲第一个故事</button>
+      </div>`;
+    $('scrollYears').textContent = '岁月 · 待开启';
+    showView('scroll');
+    return;
+  }
+  let html = '';
+  let prevYear = null;
+  stories.forEach((s, i) => {
+    const y = s.time_span && s.time_span.year_approx;
+    if (prevYear != null && y && y - prevYear >= 12){
+      html += `<div class="scroll-gap-hint node-reveal">🕳️ ${prevYear} 到 ${y} 年之间还空着——这段岁月的故事，下回讲讲？</div>`;
+    }
+    if (y) prevYear = y;
+    const stage = (s.time_span && s.time_span.life_stage) || '';
+    const fam = getFamilyEchoFor(s);
+    html += `
+      <div class="scroll-node node-reveal" data-story="${s.id}">
+        <div class="dot">${['🌾','⚙️','🏠','🎵','❤️','📚','🚂','🌙'][i % 8]}</div>
+        <div class="era">${y ? y + ' 年' : '岁月时光'} ${stage ? `<span class="stage">${esc(stage)}</span>` : ''}</div>
+        <div class="card">
+          <h4>${esc(s.title)}</h4>
+          <p>${esc((s.compiled_body[0] || '').slice(0, 64))}…</p>
+          ${s.audioRef ? `<div class="mini-wave">${(s.audioPeaks || Array.from({length:16},()=>0.4)).slice(0,16).map(p => `<i style="height:${Math.round(4+p*10)}px"></i>`).join('')}</div>` : ''}
+          <div class="fam-mark">❤️ ${fam.likes.length} · 💬 ${fam.replies.length} 条家人回应</div>
+        </div>
+      </div>`;
+  });
+  nodes.innerHTML = html;
+  const years = stories.map(s => s.time_span.year_approx).filter(Boolean);
+  $('scrollYears').textContent = years.length ? Math.min(...years) + ' — ' + Math.max(...years) + ' · ' + stories.length + ' 段故事' : stories.length + ' 段故事';
+  showView('scroll');
+  // 渐进显现
+  const io = new IntersectionObserver((entries) => {
+    entries.forEach(en => { if (en.isIntersecting){ en.target.classList.add('on'); io.unobserve(en.target); } });
+  }, { threshold: 0.15 });
+  document.querySelectorAll('.node-reveal').forEach(n => io.observe(n));
+  nodes.querySelectorAll('.scroll-node').forEach(n => {
+    n.querySelector('.card').onclick = () => {
+      const s = stories.find(x => x.id === n.dataset.story);
+      if (s){ renderStory(s, 'archived'); showView('story'); revealStoryPaper(); }
+    };
+  });
+}
+
+/* ============================================================
+ * 首页状态 / 问候 / 初始化
+ * ============================================================ */
+function greetByHour(){
+  const h = new Date().getHours();
+  if (h < 5) return ['夜深了', '这个点儿还醒着，坐下来唠两句'];
+  if (h < 9) return ['早上好', '晨光正好，想起啥新鲜事儿了'];
+  if (h < 12) return ['中午好', '吃过晌午饭了没，歇会儿聊聊天'];
+  if (h < 14) return ['下午好', '这个点儿最犯困，说段旧事提提神'];
+  if (h < 18) return ['下午好', '太阳偏西了，正是唠旧事儿的时候'];
+  return ['晚上好', '这里是光阴电台，想听听您的故事'];
+}
+function refreshHomeStats(){
+  const n = getStories().filter(s => s.archived).length;
+  $('archCount').textContent = n;
+  $('archiveStrip').style.display = n ? 'flex' : 'none';
+}
+function refreshHome(){
+  const [g1, g2] = greetByHour();
+  $('homeGreet').textContent = g1 + '呀';
+  $('homeSub').textContent = g2;
+  refreshHomeStats();
+  renderTopics(false);
+  $('homeFoot').innerHTML = llmReady()
+    ? '🎙️ 语音识别 / 流式大模型 / 语音播报 真实运行 · 家人回应为场景模拟<br><b>⚙️ 设置</b> 可查看能力边界'
+    : '🎙️ 语音识别 / 语音播报 / 故事整理 本机真实运行 · 对话大脑为本地演示版<br><b>⚙️ 设置</b> 里可接入真实流式大模型 · 家人回应为场景模拟';
+}
+
+/* ---------- 设置抽屉 ---------- */
+function openDrawer(){
+  const c = getCfg();
+  $('cfgBaseUrl').value = c.baseUrl || '';
+  $('cfgApiKey').value = c.apiKey || '';
+  $('cfgModel').value = c.model || '';
+  $('cfgStatus').textContent = llmReady() ? '✅ 当前：真实流式大模型（' + c.model + '）' : '⚪ 当前：本地演示大脑（未配置接口）';
+  $('bdLlm').innerHTML = llmReady()
+    ? '<span class="tag-real">真实实现</span> · 已接入流式大模型'
+    : '<span class="tag-sim">演示模式</span> · 本地规则大脑，配置接口后切换为真实流式';
+  $('drawerMask').classList.remove('hidden');
+  $('drawer').classList.remove('hidden');
+}
+function closeDrawer(){ $('drawerMask').classList.add('hidden'); $('drawer').classList.add('hidden'); }
+
+/* ---------- 分享页（家人打开） ---------- */
+function tryOpenShared(){
+  const m = location.hash.match(/#shared=([\w\-]+)/);
+  if (!m) return false;
+  const story = decodeStory(m[1]);
+  if (!story){ toast('这个分享链接不完整，让家人重新发一次'); location.hash = ''; return true; }
+  renderStory(story, 'shared');
+  showView('story');
+  revealStoryPaper();
+  bindFamilyInteractions(story);
+  const likeBtn = $('btnLikeStory');
+  if (likeBtn) likeBtn.onclick = () => { toast('❤️ 已收到（场景模拟演示）'); };
+  const replyBtn = $('btnFamilyReply');
+  if (replyBtn) replyBtn.onclick = () => { const v = $('familyReplyInput').value.trim(); toast(v ? '这句话已送到家人那儿（场景模拟演示）' : '先写一句想说的'); };
+  return true;
+}
+
+/* ---------- 事件绑定与启动 ---------- */
+function bindAll(){
+  $('btnScrollEntry').onclick = openScroll;
+  $('btnScrollGo').onclick = openScroll;
+  $('btnSettings').onclick = openDrawer;
+  $('btnDrawerClose').onclick = closeDrawer;
+  $('drawerMask').onclick = closeDrawer;
+  $('btnRefreshTopics').onclick = () => {
+    const b = $('btnRefreshTopics'); b.classList.add('spin');
+    setTimeout(() => b.classList.remove('spin'), 520);
+    renderTopics(true);
+  };
+  bindDeckPager();
+  $('btnFreeChat').onclick = () => startSession(null);
+  // 电台
+  $('btnMic').onclick = () => { recording ? stopRecordingTurn() : startRecordingTurn(); };
+  $('btnSendText').onclick = sendTextNow;
+  $('chatTextInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') sendTextNow(); });
+  $('btnEndEarly').onclick = () => gotoConfirm();
+  // 确认页
+  $('btnConfirmOk').onclick = confirmAndGenerate;
+  $('btnConfirmBack').onclick = () => showView('chat');
+  $('btnConfirmBack2').onclick = () => showView('chat');
+  // 故事页
+  $('btnStoryBack').onclick = () => {
+    if (storyMode === 'shared'){ location.hash = ''; refreshHome(); showView('home'); }
+    else if (getStories().length && currentStory && currentStory.archived){ openScroll(); }
+    else { refreshHome(); showView('home'); }
+  };
+  $('btnStoryShare').onclick = () => { if (currentStory) copyShareLink(currentStory, true); };
+  $('btnScrollBack').onclick = () => { refreshHome(); showView('home'); };
+  // 抽屉保存
+  $('btnSaveCfg').onclick = () => {
+    const cfg = { baseUrl: $('cfgBaseUrl').value.trim(), apiKey: $('cfgApiKey').value.trim(), model: $('cfgModel').value.trim() };
+    if (cfg.baseUrl && cfg.apiKey && cfg.model){
+      LS.set(K.cfg, cfg);
+      $('cfgStatus').textContent = '✅ 已保存：真实流式大模型（' + cfg.model + '）';
+      toast('已接入真实大模型，对话将走流式输出');
+      refreshHome();
+    } else {
+      LS.set(K.cfg, { baseUrl:'', apiKey:'', model:'' });
+      $('cfgStatus').textContent = '⚪ 已切回本地演示大脑';
+      toast('已切回本地演示大脑');
+      refreshHome();
+    }
+  };
+  $('btnClearAll').onclick = () => {
+    if (!confirm('确定要清空所有故事、草稿和画像吗？此操作不可恢复。')) return;
+    [K.draft, K.stories, K.persona, K.family, K.cfg].forEach(k => LS.del(k));
+    location.hash = '';
+    location.reload();
+  };
+  window.addEventListener('hashchange', () => { if (!tryOpenShared()){ if (!location.hash || location.hash === '#') { refreshHome(); showView('home'); } } });
+}
+function sendTextNow(){
+  const input = $('chatTextInput');
+  const text = input.value.trim();
+  if (!text) return;
+  input.value = '';
+  submitUserTurn(text, null);
+}
+
+/* 首次进入的温和说明（含演示模式标注） */
+function firstVisitHint(){
+  if (LS.get('silver_memoir_visited')) return;
+  LS.set('silver_memoir_visited', true);
+  const mask = document.createElement('div');
+  mask.className = 'modal-mask';
+  mask.innerHTML = `
+    <div class="modal">
+      <h3>📻 欢迎来到光阴电台</h3>
+      <p>不用注册、不用填表。点一张话题卡，或者点下面那个大按钮，想到啥说啥就行。</p>
+      <p>说完的故事会整理成一页<b>人生手帖</b>，您确认后收进<b>人生长卷</b>，也可以发给孩子们瞧瞧。</p>
+      <p style="font-size:12.5px;color:#997F62;">说明：语音识别、语音播报与故事整理在本机真实运行；对话大脑默认为本地演示版（⚙️ 设置里可接入真实大模型）；家人回应为场景模拟。</p>
+      <div class="modal-btns"><button class="mini-btn primary" id="hintOk">好，我明白了</button></div>
+    </div>`;
+  document.body.appendChild(mask);
+  mask.querySelector('#hintOk').onclick = () => mask.remove();
+}
+
+/* 刻度盘渲染 */
+function renderDial(){
+  const labels = ['53','61','70','81','92','103','118','130'];
+  const scales = $('dialScale');
+  let html = labels.map(l => `<b>${l}</b>`).join('');
+  for (let i = 0; i < 40; i++) html += `<i class="${i % 5 === 0 ? 'tall' : ''}" style="left:${4 + i * 2.35}%"></i>`;
+  scales.innerHTML = html;
+}
+
+(function init(){
+  renderDial();
+  renderWavStrip();
+  bindAll();
+  if (!tryOpenShared()){
+    refreshHome();
+    showView('home');
+    const draft = loadDraft();
+    if (draft && draft.rounds && draft.rounds.length){
+      $('draftPill').classList.remove('hidden');
+      toast('上次的故事还没讲完，点任意话题可接着讲');
+    }
+  }
+  firstVisitHint();
+  try{ if ('speechSynthesis' in window) speechSynthesis.getVoices(); }catch(e){}
+})();
+</script>
+</body>
+</html>
