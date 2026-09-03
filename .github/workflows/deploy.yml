@@ -1,4 +1,4 @@
-name: Deploy Silver Memoir preview to Pages
+name: Deploy preview to surge.sh
 
 on:
   push:
@@ -7,35 +7,35 @@ on:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
-
-concurrency:
-  group: pages
-  cancel-in-progress: true
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
 
-      - name: Stage site content
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install surge
+        run: npm install -g surge
+
+      - name: Deploy to surge.sh
+        env:
+          SURGE_LOGIN: guangyin.shoutie.2026@gmail.com
+          SURGE_PASS: Xk9mQ2vLp7Rn4Wz8j
         run: |
-          mkdir -p /tmp/site
-          cp index.html /tmp/site/
+          mkdir -p site
+          cp index.html site/
+          export CI=false
+          printf '%s\n%s\n' "$SURGE_LOGIN" "$SURGE_PASS" | surge site/ guangyin-shoutie.surge.sh
 
-      - uses: actions/configure-pages@v5
-        with:
-          enablement: true
-
-      - uses: actions/upload-pages-artifact@v3
-        with:
-          path: /tmp/site
-
-      - name: Deploy
-        id: deployment
-        uses: actions/deploy-pages@v4
+      - name: Verify deployment
+        run: |
+          sleep 5
+          CODE=$(curl -s -o /tmp/page.html -w "%{http_code}" https://guangyin-shoutie.surge.sh/)
+          SIZE=$(wc -c < /tmp/page.html)
+          echo "http=$CODE size=$SIZE"
+          grep -q "光阴手帖" /tmp/page.html && echo "CONTENT OK" || echo "CONTENT MISMATCH"
+          [ "$CODE" = "200" ] && [ "$SIZE" -gt 100000 ]
